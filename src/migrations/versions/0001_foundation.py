@@ -3,8 +3,8 @@
 Revision ID: 0001_foundation
 """
 
-from alembic import op
 import sqlalchemy as sa
+from alembic import op
 
 revision = "0001_foundation"
 down_revision = None
@@ -20,9 +20,7 @@ def upgrade() -> None:
         sa.Column("name", sa.String(length=100), nullable=False),
         sa.Column(
             "budget_group",
-            sa.Enum(
-                "NEEDS", "WANTS", "SAVINGS", "INCOME", "OTHER", name="budget_group"
-            ),
+            sa.Enum("NEEDS", "WANTS", "SAVINGS", "INCOME", "OTHER", name="budget_group"),
             nullable=False,
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_categories")),
@@ -40,9 +38,7 @@ def upgrade() -> None:
             server_default=sa.text("now()"),
             nullable=False,
         ),
-        sa.CheckConstraint(
-            "email = lower(trim(email))", name=op.f("ck_users_normalized_email")
-        ),
+        sa.CheckConstraint("email = lower(trim(email))", name=op.f("ck_users_normalized_email")),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_users")),
         sa.UniqueConstraint("email", name=op.f("uq_users_email")),
     )
@@ -50,14 +46,10 @@ def upgrade() -> None:
         "category_rules",
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("category_id", sa.Integer(), nullable=False),
-        sa.Column(
-            "rule_type", sa.Enum("MCC", "KEYWORD", name="rule_type"), nullable=False
-        ),
+        sa.Column("rule_type", sa.Enum("MCC", "KEYWORD", name="rule_type"), nullable=False),
         sa.Column("pattern", sa.String(length=1000), nullable=False),
         sa.Column("priority", sa.Integer(), nullable=False),
-        sa.CheckConstraint(
-            "priority >= 0", name=op.f("ck_category_rules_nonnegative_priority")
-        ),
+        sa.CheckConstraint("priority >= 0", name=op.f("ck_category_rules_nonnegative_priority")),
         sa.ForeignKeyConstraint(
             ["category_id"],
             ["categories.id"],
@@ -65,9 +57,7 @@ def upgrade() -> None:
             ondelete="RESTRICT",
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_category_rules")),
-        sa.UniqueConstraint(
-            "rule_type", "pattern", name=op.f("uq_category_rules_rule_type")
-        ),
+        sa.UniqueConstraint("rule_type", "pattern", name=op.f("uq_category_rules_rule_type")),
     )
     op.create_table(
         "discounts",
@@ -171,9 +161,7 @@ def upgrade() -> None:
             ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_transactions")),
-        sa.UniqueConstraint(
-            "user_id", "import_hash", name=op.f("uq_transactions_user_id")
-        ),
+        sa.UniqueConstraint("user_id", "import_hash", name=op.f("uq_transactions_user_id")),
     )
     op.create_index(
         "ix_transactions_user_date",
@@ -214,9 +202,7 @@ def upgrade() -> None:
             ondelete="CASCADE",
         ),
         sa.PrimaryKeyConstraint("id", name=op.f("pk_user_rules")),
-        sa.UniqueConstraint(
-            "user_id", "merchant_name", name=op.f("uq_user_rules_user_id")
-        ),
+        sa.UniqueConstraint("user_id", "merchant_name", name=op.f("uq_user_rules_user_id")),
     )
     op.create_table(
         "goal_contributions",
@@ -252,9 +238,7 @@ def upgrade() -> None:
         sa.column("name", sa.String()),
         sa.column(
             "budget_group",
-            sa.Enum(
-                "NEEDS", "WANTS", "SAVINGS", "INCOME", "OTHER", name="budget_group"
-            ),
+            sa.Enum("NEEDS", "WANTS", "SAVINGS", "INCOME", "OTHER", name="budget_group"),
         ),
     )
     category_rules = sa.table(
@@ -289,7 +273,10 @@ def upgrade() -> None:
             {
                 "category_id": 1,
                 "rule_type": "KEYWORD",
-                "pattern": "пятерочк|перекресток|магнит|лента|ашан|вкусвилл|самокат|лавка|монетка|верный|ярче|метро|окей",
+                "pattern": (
+                    "пятерочк|перекресток|магнит|лента|ашан|вкусвилл|самокат|лавка|"
+                    "монетка|верный|ярче|метро|окей"
+                ),
                 "priority": 20,
             },
             {"category_id": 2, "rule_type": "MCC", "pattern": "4111", "priority": 0},
@@ -300,7 +287,10 @@ def upgrade() -> None:
             {
                 "category_id": 2,
                 "rule_type": "KEYWORD",
-                "pattern": "яндекс.*go|такси|uber|ситимобил|метрополитен|пассажиравтотранс|газпромнефть|лукойл|роснефть|татнефть|парковк",
+                "pattern": (
+                    "яндекс.*go|такси|uber|ситимобил|метрополитен|пассажиравтотранс|"
+                    "газпромнефть|лукойл|роснефть|татнефть|парковк"
+                ),
                 "priority": 20,
             },
             {"category_id": 3, "rule_type": "MCC", "pattern": "4900", "priority": 0},
@@ -329,8 +319,10 @@ def upgrade() -> None:
             {
                 "category_id": 5,
                 "rule_type": "KEYWORD",
-                "pattern": "вкусно.*точк|бургер кинг|kfc|ростикс|додо|пицц|шоколадниц|кофе|coffee|доставка "
-                "еды|яндекс.*еда|купер",
+                "pattern": (
+                    "вкусно.*точк|бургер кинг|kfc|ростикс|додо|пицц|шоколадниц|"
+                    "кофе|coffee|доставка еды|яндекс.*еда|купер"
+                ),
                 "priority": 20,
             },
             {"category_id": 6, "rule_type": "MCC", "pattern": "7832", "priority": 0},
@@ -350,8 +342,10 @@ def upgrade() -> None:
             {
                 "category_id": 7,
                 "rule_type": "KEYWORD",
-                "pattern": "wildberries|вайлдберриз|ozon|озон|aliexpress|lamoda|ламода|спортмастер|gloria "
-                "jeans|befree",
+                "pattern": (
+                    "wildberries|вайлдберриз|ozon|озон|aliexpress|lamoda|ламода|"
+                    "спортмастер|gloria jeans|befree"
+                ),
                 "priority": 20,
             },
             {"category_id": 8, "rule_type": "MCC", "pattern": "7230", "priority": 0},
@@ -368,7 +362,9 @@ def upgrade() -> None:
             {
                 "category_id": 9,
                 "rule_type": "KEYWORD",
-                "pattern": "копилк|вклад|накопительн|инвестици|брокер|тинькофф инвестиции|сбербанк инвест",
+                "pattern": (
+                    "копилк|вклад|накопительн|инвестици|брокер|тинькофф инвестиции|сбербанк инвест"
+                ),
                 "priority": 20,
             },
             {

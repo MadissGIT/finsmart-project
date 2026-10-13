@@ -1,0 +1,42 @@
+name: Backend
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: finsmart
+          POSTGRES_PASSWORD: test-only-password
+          POSTGRES_DB: finsmart_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U finsmart -d finsmart_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      FINSMART_TEST_DATABASE_URL: postgresql+asyncpg://finsmart:test-only-password@localhost:5432/finsmart_test
+      FINSMART_DATABASE_URL: postgresql+asyncpg://finsmart:test-only-password@localhost:5432/finsmart_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - run: uv run ruff check src tests
+      - run: uv run ruff format --check src tests
+      - run: uv run mypy src
+      - run: uv run pytest
+      - run: uv run alembic upgrade head
+      - run: uv run alembic check

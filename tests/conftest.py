@@ -13,9 +13,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection, create_async_engine
 @pytest.fixture
 def postgres() -> Iterator[tuple[asyncio.Runner, AsyncConnection]]:
     if not (database_url := os.getenv("FINSMART_TEST_DATABASE_URL")):
-        pytest.skip(
-            "Set FINSMART_TEST_DATABASE_URL to run PostgreSQL integration tests"
-        )
+        pytest.skip("Set FINSMART_TEST_DATABASE_URL to run PostgreSQL integration tests")
     engine = create_async_engine(database_url)
     with asyncio.Runner() as runner:
         connection = runner.run(engine.connect().start())

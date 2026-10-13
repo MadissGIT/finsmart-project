@@ -37,17 +37,13 @@ def test_migration_matches_models_and_seed(
 
     async def scenario() -> None:
         differences = await connection.run_sync(
-            lambda sync: compare_metadata(
-                MigrationContext.configure(sync), Base.metadata
-            ),
+            lambda sync: compare_metadata(MigrationContext.configure(sync), Base.metadata),
         )
         assert differences == []
         async with AsyncSession(
             bind=connection, join_transaction_mode="create_savepoint"
         ) as session:
-            categories = list(
-                (await session.scalars(select(Category).order_by(Category.id))).all()
-            )
+            categories = list((await session.scalars(select(Category).order_by(Category.id))).all())
             assert [category.id for category in categories] == list(range(1, 12))
             assert categories[4].name == "Кафе и рестораны"
             assert categories[-1].budget_group is BudgetGroup.OTHER
@@ -88,9 +84,7 @@ def test_seed_keywords(
 
     async def scenario() -> None:
         async with AsyncSession(bind=connection) as session:
-            result = await CategorizationService(
-                CategorizationRepository(session)
-            ).categorize(
+            result = await CategorizationService(CategorizationRepository(session)).categorize(
                 user_id=uuid4(),
                 merchant_name=merchant,
                 raw_description="",
@@ -153,9 +147,7 @@ def test_user_rules_are_isolated(
                 )
             )
             await session.flush()
-            session.add(
-                UserRule(user_id=user_id, merchant_name="simple coffee", category_id=2)
-            )
+            session.add(UserRule(user_id=user_id, merchant_name="simple coffee", category_id=2))
             await session.flush()
             service = CategorizationService(CategorizationRepository(session))
             for current_user, expected in [(user_id, 2), (uuid4(), 1)]:
@@ -196,22 +188,14 @@ def test_import_deduplication_and_manual_entries(
                 "requires_review": False,
             }
             for user in users:
-                session.add(
-                    Transaction(user_id=user.id, import_hash="a" * 64, **fields)
-                )
-            session.add_all(
-                [Transaction(user_id=users[0].id, **fields) for _ in range(2)]
-            )
+                session.add(Transaction(user_id=user.id, import_hash="a" * 64, **fields))
+            session.add_all([Transaction(user_id=users[0].id, **fields) for _ in range(2)])
             await session.flush()
             with pytest.raises(IntegrityError):
                 async with session.begin_nested():
-                    session.add(
-                        Transaction(user_id=users[0].id, import_hash="a" * 64, **fields)
-                    )
+                    session.add(Transaction(user_id=users[0].id, import_hash="a" * 64, **fields))
                     await session.flush()
-            assert (
-                await session.scalar(select(func.count()).select_from(Transaction)) == 4
-            )
+            assert await session.scalar(select(func.count()).select_from(Transaction)) == 4
 
     runner.run(scenario())
 
@@ -261,9 +245,7 @@ def test_contribution_cascades_with_user(
         async with AsyncSession(
             bind=connection, join_transaction_mode="create_savepoint"
         ) as session:
-            user = User(
-                email="user@example.com", hashed_password="hash", full_name="User"
-            )
+            user = User(email="user@example.com", hashed_password="hash", full_name="User")
             session.add(user)
             await session.flush()
             goal = Goal(
@@ -279,10 +261,7 @@ def test_contribution_cascades_with_user(
             await session.delete(user)
             await session.flush()
             assert await session.scalar(select(func.count()).select_from(Goal)) == 0
-            assert (
-                await session.scalar(select(func.count()).select_from(GoalContribution))
-                == 0
-            )
+            assert await session.scalar(select(func.count()).select_from(GoalContribution)) == 0
 
     runner.run(scenario())
 

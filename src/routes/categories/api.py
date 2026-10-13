@@ -11,11 +11,8 @@ router = APIRouter(prefix="/categories", tags=["Categories"])
 
 @router.get("", response_model=list[CategoryResponse])
 async def list_categories(
-    category_repository: Annotated[
-        CategoryRepository, Depends(get_category_repository)
-    ],
+    category_repository: Annotated[CategoryRepository, Depends(get_category_repository)],
 ) -> list[CategoryResponse]:
     return [
-        CategoryResponse.model_validate(row)
-        for row in await category_repository.list_categories()
+        CategoryResponse.model_validate(row) for row in await category_repository.list_categories()
     ]

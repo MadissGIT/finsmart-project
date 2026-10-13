@@ -1,5 +1,7 @@
-from unittest.mock import AsyncMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
+from asyncpg.exceptions import InvalidCatalogNameError
 from fastapi.testclient import TestClient
 from sqlalchemy.exc import OperationalError
 
@@ -34,9 +36,7 @@ def test_categories_serialize_enum() -> None:
         with TestClient(app) as client:
             response = client.get("/api/v1/categories")
         assert response.status_code == 200
-        assert response.json() == [
-            {"id": 1, "name": "Супермаркеты", "budget_group": "NEEDS"}
-        ]
+        assert response.json() == [{"id": 1, "name": "Супермаркеты", "budget_group": "NEEDS"}]
     finally:
         app.dependency_overrides.clear()
 
@@ -50,11 +50,20 @@ def test_readiness_without_database_configuration(monkeypatch) -> None:
     assert response.json() == {"detail": "Database unavailable"}
 
 
-def test_readiness_on_database_failure() -> None:
+@pytest.mark.parametrize(
+    "error",
+    [
+        OperationalError("connect", {}, Exception("unavailable")),
+        InvalidCatalogNameError("Database does not exist"),
+        ConnectionRefusedError("Connection refused"),
+        TimeoutError("Connection timeout"),
+    ],
+)
+def test_readiness_on_database_failure(error: Exception) -> None:
     with (
         patch(
             "src.routes.health.get_async_engine",
-            side_effect=OperationalError("connect", {}, Exception("unavailable")),
+            side_effect=error,
         ),
         TestClient(app) as client,
     ):
@@ -74,3 +83,23 @@ def test_cors_is_closed_by_default() -> None:
         )
     assert response.status_code == 400
     assert "access-control-allow-origin" not in response.headers
+
+
+@pytest.mark.parametrize(
+    ("revision", "expected_status"),
+    [("0001_foundation", 200), ("outdated_revision", 503), (None, 503)],
+)
+def test_readiness_requires_current_migration(
+    revision: str | None,
+    expected_status: int,
+) -> None:
+    connection = AsyncMock()
+    connection.scalar.return_value = revision
+    engine = MagicMock()
+    engine.connect.return_value.__aenter__.return_value = connection
+    with (
+        patch("src.routes.health.get_async_engine", return_value=engine),
+        TestClient(app) as client,
+    ):
+        response = client.get("/api/v1/health/ready")
+    assert response.status_code == expected_status

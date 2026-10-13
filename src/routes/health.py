@@ -4,6 +4,7 @@ from typing import Literal
 
 from alembic.config import Config
 from alembic.script import ScriptDirectory
+from asyncpg.exceptions import PostgresError
 from fastapi import APIRouter, HTTPException, status
 from pydantic import ValidationError
 from sqlalchemy import text
@@ -26,20 +27,12 @@ async def readiness() -> dict[str, Literal["ok"]]:
     try:
         engine = get_async_engine()
         async with engine.connect() as connection:
-            revision = await connection.scalar(
-                text("SELECT version_num FROM alembic_version")
-            )
+            revision = await connection.scalar(text("SELECT version_num FROM alembic_version"))
         config = Config()
-        config.set_main_option(
-            "script_location", str(Path(__file__).parents[1] / "migrations")
-        )
+        config.set_main_option("script_location", str(Path(__file__).parents[1] / "migrations"))
         if revision != ScriptDirectory.from_config(config).get_current_head():
-            raise HTTPException(
-                status.HTTP_503_SERVICE_UNAVAILABLE, "Database migrations pending"
-            )
-    except (SQLAlchemyError, OSError, ValidationError) as err:
+            raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Database migrations pending")
+    except (SQLAlchemyError, PostgresError, OSError, ValidationError) as err:
         logger.warning("Database readiness check failed (%s)", type(err).__name__)
-        raise HTTPException(
-            status.HTTP_503_SERVICE_UNAVAILABLE, "Database unavailable"
-        ) from err
+        raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "Database unavailable") from err
     return {"status": "ok"}

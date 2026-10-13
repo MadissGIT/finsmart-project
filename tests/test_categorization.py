@@ -20,9 +20,7 @@ def categorization_repository() -> AsyncMock:
         budget_group=BudgetGroup.OTHER,
     )
     groceries = Category(id=1, name="Супермаркеты", budget_group=BudgetGroup.NEEDS)
-    restaurants = Category(
-        id=5, name="Кафе и рестораны", budget_group=BudgetGroup.WANTS
-    )
+    restaurants = Category(id=5, name="Кафе и рестораны", budget_group=BudgetGroup.WANTS)
     income = Category(id=10, name="Зарплата и доходы", budget_group=BudgetGroup.INCOME)
     repository.list_rules.return_value = [
         (CategoryRule(rule_type=RuleType.KEYWORD, pattern="кофе|coffee"), restaurants),
@@ -36,9 +34,7 @@ def test_user_rule_precedes_mcc_and_keywords(
     categorization_repository: AsyncMock,
 ) -> None:
     user_id = uuid4()
-    categorization_repository.get_user_category.return_value = Category(
-        id=2, name="Транспорт"
-    )
+    categorization_repository.get_user_category.return_value = Category(id=2, name="Транспорт")
     result = asyncio.run(
         CategorizationService(categorization_repository).categorize(
             user_id=user_id,
@@ -51,9 +47,7 @@ def test_user_rule_precedes_mcc_and_keywords(
     assert result.category_id == 2
     assert result.confidence == Decimal("1.00")
     assert not result.requires_review
-    categorization_repository.get_user_category.assert_awaited_once_with(
-        user_id, "simple coffee"
-    )
+    categorization_repository.get_user_category.assert_awaited_once_with(user_id, "simple coffee")
     categorization_repository.list_rules.assert_not_awaited()
 
 

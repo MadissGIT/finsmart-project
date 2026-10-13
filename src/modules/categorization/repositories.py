@@ -10,16 +10,13 @@ class CategorizationRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def get_user_category(
-        self, user_id: UUID, merchant_name: str
-    ) -> Category | None:
-        return await self._session.scalar(
+    async def get_user_category(self, user_id: UUID, merchant_name: str) -> Category | None:
+        result = await self._session.scalars(
             select(Category)
             .join(UserRule, UserRule.category_id == Category.id)
-            .where(
-                UserRule.user_id == user_id, UserRule.merchant_name == merchant_name
-            ),
+            .where(UserRule.user_id == user_id, UserRule.merchant_name == merchant_name),
         )
+        return result.one_or_none()
 
     async def list_rules(self) -> list[tuple[CategoryRule, Category]]:
         result = await self._session.execute(

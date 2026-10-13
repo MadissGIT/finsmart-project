@@ -38,29 +38,21 @@ class CategorizationService:
                 normalized_merchant,
             )
         ):
-            return CategorizationResult(
-                category.id, category.name, Decimal("1.00"), False
-            )
+            return CategorizationResult(category.id, category.name, Decimal("1.00"), False)
         rules = await self._categorization_repository.list_rules()
         # MCC describes a merchant's activity; incoming payments are income, not spending.
         if operation_type is OperationType.DEBIT and mcc_code is not None:
             for rule, category in rules:
                 if rule.rule_type is RuleType.MCC and rule.pattern == mcc_code:
-                    return CategorizationResult(
-                        category.id, category.name, Decimal("0.95"), False
-                    )
+                    return CategorizationResult(category.id, category.name, Decimal("0.95"), False)
         description = f"{normalized_merchant} {raw_description}".lower()
         for rule, category in rules:
             if (category.budget_group is BudgetGroup.INCOME) != (
                 operation_type is OperationType.CREDIT
             ):
                 continue
-            if rule.rule_type is RuleType.KEYWORD and re.search(
-                rule.pattern, description
-            ):
-                return CategorizationResult(
-                    category.id, category.name, Decimal("0.80"), False
-                )
+            if rule.rule_type is RuleType.KEYWORD and re.search(rule.pattern, description):
+                return CategorizationResult(category.id, category.name, Decimal("0.80"), False)
         if (category := await self._categorization_repository.get_category(11)) is None:
             msg = "Fallback category is missing; apply the initial migration"
             raise RuntimeError(msg)
