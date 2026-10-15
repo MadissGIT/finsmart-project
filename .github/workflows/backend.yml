@@ -1,0 +1,64 @@
+name: Backend
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: finsmart
+          POSTGRES_PASSWORD: test-only-password
+          POSTGRES_DB: finsmart_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U finsmart -d finsmart_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      FINSMART_TEST_DATABASE_URL: postgresql+asyncpg://finsmart:test-only-password@localhost:5432/finsmart_test
+      FINSMART_DATABASE_URL: postgresql+asyncpg://finsmart:test-only-password@localhost:5432/finsmart_test
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --locked
+      - run: uv run ruff check src tests
+      - run: uv run ruff format --check src tests
+      - run: uv run mypy src
+      - run: uv run pytest
+      - run: uv run alembic upgrade head
+      - run: uv run alembic check
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose config --quiet
+      - run: docker compose up --build --wait --wait-timeout 180
+      - name: Check API and seeded categories
+        run: |
+          curl --fail http://127.0.0.1:8000/api/v1/health/ready
+          curl --fail http://127.0.0.1:8000/api/v1/categories > /tmp/categories.json
+          python3 -c 'import json; assert len(json.load(open("/tmp/categories.json"))) == 11'
+      - run: docker compose run --build --rm test
+      - run: docker compose exec -T api alembic check
+      - name: Verify restart with existing data
+        run: docker compose restart api && docker compose up --wait --wait-timeout 60
+      - name: Container logs
+        if: failure()
+        run: docker compose logs
+      - name: Stop containers
+        if: always()
+        run: docker compose down
