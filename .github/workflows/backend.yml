@@ -40,3 +40,25 @@ jobs:
       - run: uv run pytest
       - run: uv run alembic upgrade head
       - run: uv run alembic check
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker compose config --quiet
+      - run: docker compose up --build --wait --wait-timeout 180
+      - name: Check API and seeded categories
+        run: |
+          curl --fail http://127.0.0.1:8000/api/v1/health/ready
+          curl --fail http://127.0.0.1:8000/api/v1/categories > /tmp/categories.json
+          python3 -c 'import json; assert len(json.load(open("/tmp/categories.json"))) == 11'
+      - run: docker compose run --build --rm test
+      - run: docker compose exec -T api alembic check
+      - name: Verify restart with existing data
+        run: docker compose restart api && docker compose up --wait --wait-timeout 60
+      - name: Container logs
+        if: failure()
+        run: docker compose logs
+      - name: Stop containers
+        if: always()
+        run: docker compose down

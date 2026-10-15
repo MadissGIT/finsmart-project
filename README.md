@@ -1,185 +1,121 @@
 # ФинСмарт Backend
 
-Foundation первой недели: FastAPI, PostgreSQL, типизированные модели SQLAlchemy,
+Foundation первой недели: FastAPI, PostgreSQL, модели SQLAlchemy,
 Alembic и категоризация операций по справочнику из проектной документации.
 
-## Локальное развёртывание
+## Локальный запуск через Docker
 
-Инструкция для macOS, Linux или Windows с WSL/Bash. API запускается на хосте,
-PostgreSQL 16 — в локальном Docker. Вместо Docker можно использовать уже
-установленный PostgreSQL 14+: создайте пользователя и пустую БД, затем укажите
-их адрес в `FINSMART_DATABASE_URL`.
+Нужны только Git и Docker Desktop либо Docker Engine с Compose v2.
+Python, uv и PostgreSQL на компьютер устанавливать не нужно.
 
-### 1. Подготовьте инструменты
-
-Установите Git, [uv](https://docs.astral.sh/uv/getting-started/installation/)
-и Docker Desktop либо Docker Engine. Запустите локальный Docker.
-Все команды Docker ниже явно используют локальный контекст `default`.
-Если Docker Desktop использует `desktop-linux`, замените `default` на
-`desktop-linux` в командах. Доступные контексты: `docker context ls`.
-
-Проверьте инструменты и установите Python 3.13 через uv:
+Запустите Docker и убедитесь, что выбран локальный контекст:
 
 ```bash
-git --version
-uv --version
-docker --context default info
-uv python install 3.13
+docker context ls
+docker info
+docker compose version
 ```
 
-### 2. Скачайте проект и установите зависимости
+Если выбран удалённый контекст, переключитесь на локальный:
+`docker context use desktop-linux` для Docker Desktop или
+`docker context use default` для локального Docker Engine. Выберите имя,
+которое присутствует в `docker context ls`.
+
+### Первый запуск
 
 ```bash
 git clone --branch backend-week-1 https://github.com/MadissGIT/finsmart-project.git
 cd finsmart-project
-uv sync --locked
+docker compose up --build --wait --wait-timeout 180
 ```
 
-Если проект уже скачан, откройте терминал в его корне и выполните
-`uv sync --locked`. uv создаст `.venv` и установит версии из `uv.lock`;
-активировать окружение вручную не нужно.
+Если проект уже скачан, выполните последнюю команду в его корне.
+Она соберёт образ API с зависимостями из `uv.lock`, запустит PostgreSQL 16,
+дождётся готовности БД, применит миграции и запустит API. Команда завершится
+после успешной проверки readiness; контейнеры продолжат работать в фоне.
+Миграция загрузит 11 категорий и 38 правил категоризации.
 
-### 3. Запустите PostgreSQL
+- [Swagger UI](http://127.0.0.1:8000/docs) — документация и выполнение запросов.
+- [Readiness](http://127.0.0.1:8000/api/v1/health/ready) — ожидается `{"status":"ok"}`.
+- [Категории](http://127.0.0.1:8000/api/v1/categories) — массив из 11 категорий.
+- [OpenAPI JSON](http://127.0.0.1:8000/openapi.json) — контракты API.
 
-Первый запуск:
+PostgreSQL доступен только контейнерам, его порт не публикуется на хост.
+Локальные реквизиты заданы в `compose.yaml`. API опубликован на `127.0.0.1:8000`.
+Данные сохраняются в Docker volume `postgres_data` между перезапусками.
 
-```bash
-docker --context default run --detach \
-  --name finsmart-postgres \
-  --publish 127.0.0.1:5433:5432 \
-  --env POSTGRES_USER=finsmart \
-  --env POSTGRES_PASSWORD=finsmart_local \
-  --env POSTGRES_DB=finsmart \
-  --volume finsmart-pgdata:/var/lib/postgresql/data \
-  postgres:16
-```
-
-Здесь `finsmart_local` — пример пароля для локальной разработки. БД доступна
-на `127.0.0.1:5433`; данные сохраняются в Docker volume `finsmart-pgdata`.
-
-Дождитесь готовности БД:
-
-```bash
-docker --context default exec finsmart-postgres pg_isready -U finsmart -d finsmart
-```
-
-Ожидаемый результат — `accepting connections`. Если БД ещё запускается,
-повторите проверку через несколько секунд. Логи:
-`docker --context default logs finsmart-postgres`.
-
-### 4. Настройте подключение и примените миграции
-
-В корне проекта, в том же терминале, где будете запускать API:
-
-```bash
-export FINSMART_DATABASE_URL='postgresql+asyncpg://finsmart:finsmart_local@127.0.0.1:5433/finsmart'
-uv run alembic upgrade head
-uv run alembic check
-```
-
-Миграция создаст таблицы и загрузит 11 категорий и 38 правил категоризации.
-Приложение не создаёт схему при старте. `alembic check` должен сообщить
-`No new upgrade operations detected.`
-
-Настройки читаются из окружения. `.env` автоматически не загружается.
-При открытии нового терминала повторите `export FINSMART_DATABASE_URL=...`.
-Если используете свою БД, замените URL; специальные символы в пароле должны
-быть URL-encoded.
-
-### 5. Запустите API
-
-```bash
-uv run uvicorn src.app:app --reload --host 127.0.0.1 --port 8000
-```
-
-Откройте [Swagger UI](http://127.0.0.1:8000/docs) для выполнения запросов.
-[OpenAPI JSON](http://127.0.0.1:8000/openapi.json) содержит контракты маршрутов.
-
-В другом терминале проверьте запуск:
-
-```bash
-curl --fail http://127.0.0.1:8000/api/v1/health/live
-curl --fail http://127.0.0.1:8000/api/v1/health/ready
-curl --fail http://127.0.0.1:8000/api/v1/categories
-```
-
-Обе health-проверки должны вернуть `{"status":"ok"}`, справочник — массив
-из 11 категорий. Liveness проверяет процесс, readiness — доступ к БД и версию
-миграций. Все три маршрута публичные и не возвращают пользовательские данные.
+Все доступные маршруты публичные и не возвращают пользовательские данные.
 Регистрация, JWT, импорт, CRUD транзакций, аналитика, цели и скидки относятся
 к следующим неделям; их маршруты пока не реализованы.
 
-Если подключаете локальный frontend, перед запуском API задайте его origin:
+### Логи, остановка и повторный запуск
 
 ```bash
-export FINSMART_CORS_ORIGINS='["http://localhost:5173"]'
+docker compose ps
+docker compose logs --follow api db
 ```
 
-По умолчанию CORS закрыт. Origin должен точно совпадать с адресом frontend,
-включая схему, хост и порт.
+`Ctrl+C` завершает просмотр логов, контейнеры продолжают работать.
 
-### Остановка и повторный запуск
-
-Остановите API сочетанием `Ctrl+C`, затем остановите БД:
+Остановить и удалить контейнеры, сохранив данные БД:
 
 ```bash
-docker --context default stop finsmart-postgres
+docker compose down
 ```
 
-Для следующего запуска используйте существующий контейнер:
+Повторно запустить или пересобрать после изменения кода:
 
 ```bash
-docker --context default start finsmart-postgres
-export FINSMART_DATABASE_URL='postgresql+asyncpg://finsmart:finsmart_local@127.0.0.1:5433/finsmart'
-uv run alembic upgrade head
-uv run uvicorn src.app:app --reload --host 127.0.0.1 --port 8000
+docker compose up --build --wait --wait-timeout 180
 ```
 
-Повторять `docker run` не нужно; данные сохраняются между запусками.
+При каждом запуске API применяет новые миграции перед стартом сервера.
 
-### Частые проблемы
-
-- Docker недоступен: запустите Docker Desktop/Engine и проверьте
-  `docker --context default info`.
-- Имя `finsmart-postgres` уже занято: используйте команду запуска
-  `docker --context default start finsmart-postgres` для ранее созданного контейнера.
-- Порт `5433` занят: выберите другой порт слева в `--publish`, затем измените
-  порт в `FINSMART_DATABASE_URL`.
-- Порт `8000` занят: запустите Uvicorn с `--port 8001` и используйте этот порт
-  в адресе Swagger и командах curl.
-- Readiness возвращает 503: проверьте готовность PostgreSQL, переменную
-  `FINSMART_DATABASE_URL` и выполните `uv run alembic upgrade head`.
-- Ошибка авторизации в БД: проверьте пользователя и пароль. Переменные
-  `POSTGRES_*` при первом запуске инициализируют пустой volume; их изменение
-  не меняет пароль в уже существующей БД.
-
-## Проверки
+### Проверки в Docker
 
 ```bash
-uv run ruff check src tests
-uv run ruff format --check src tests
-uv run mypy src
-uv run pytest
+docker compose run --build --rm test
+docker compose run --rm test ruff check src tests
+docker compose run --rm test ruff format --check src tests
+docker compose run --rm test mypy src
+docker compose exec api alembic check
 ```
 
-Интеграционные тесты создают отдельную случайную PostgreSQL-схему, применяют в ней
-миграции и проверяют данные и ограничения. Для контейнера из инструкции выше
-однократно создайте отдельную тестовую БД:
+Сервис `test` собирает отдельный образ с dev-зависимостями. В обычном образе API
+их нет. Тесты запускаются с PostgreSQL: каждый интеграционный тест создаёт
+временную схему в транзакции и откатывает её после завершения, не меняя
+пользовательские данные. По умолчанию `docker compose up` сервис `test` не запускает.
+
+CI проверяет код, сборку Docker-образов, полный запуск Compose, API,
+миграции, тесты и перезапуск API с существующей БД.
+
+### Настройки и частые проблемы
+
+Если порт 8000 занят, задайте другой внешний порт перед запуском (Bash/zsh):
 
 ```bash
-docker --context default exec finsmart-postgres createdb -U finsmart finsmart_test
+FINSMART_API_PORT=8001 docker compose up --build --wait --wait-timeout 180
 ```
 
-Задайте подключение и запустите все тесты:
+Тогда Swagger будет доступен по адресу `http://127.0.0.1:8001/docs`.
+Для последующих команд Compose используйте то же значение переменной.
+
+Если подключаете локальный frontend, укажите его origin (Bash/zsh):
 
 ```bash
-export FINSMART_TEST_DATABASE_URL='postgresql+asyncpg://finsmart:finsmart_local@127.0.0.1:5433/finsmart_test'
-uv run pytest
+FINSMART_CORS_ORIGINS='["http://localhost:5173"]' docker compose up --build --wait --wait-timeout 180
 ```
 
-Без этой переменной PostgreSQL-тесты явно пропускаются. CI запускает их на
-отдельном PostgreSQL service. Проверка соответствия моделей миграции:
-`uv run alembic check` после применения миграций к локальной БД.
+По умолчанию CORS закрыт. Схема, хост и порт должны совпадать с адресом frontend.
+
+Если контейнер не запустился или readiness возвращает 503, выполните
+`docker compose ps --all` и `docker compose logs api db`. API не запустится,
+если не удалось применить миграции. Проверьте, что Docker работает и имеет
+доступ к Docker Hub и GHCR для загрузки образов.
+
+Используются стандартные механизмы
+[Docker Compose](https://docs.docker.com/compose/how-tos/startup-order/) и
+[установки зависимостей uv в Docker](https://docs.astral.sh/uv/guides/integration/docker/).
 
 ## Структура
 
