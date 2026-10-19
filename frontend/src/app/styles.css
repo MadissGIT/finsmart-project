@@ -1,0 +1,31 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", "Segoe UI", system-ui, sans-serif;
+  --color-brand-50: #edf7f2;
+  --color-brand-100: #dceee4;
+  --color-brand-600: #20815e;
+  --color-brand-700: #166b50;
+  --color-brand-900: #174234;
+}
+
+@layer base {
+  body { @apply m-0 bg-stone-50 text-stone-900 antialiased; }
+  button, a, input, select { -webkit-tap-highlight-color: transparent; }
+  button:not(:disabled), a { touch-action: manipulation; }
+  button:not(:disabled) { cursor: pointer; }
+  :focus-visible { @apply outline-2 outline-offset-4 outline-brand-700; }
+  ::selection { @apply bg-brand-100; }
+}
+
+@layer components {
+  .panel { @apply rounded-2xl border border-stone-200 bg-white p-5 sm:p-6; }
+  .button-primary { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-brand-700 px-4 py-2 text-sm font-medium text-white hover:bg-brand-900 disabled:cursor-wait disabled:opacity-60; }
+  .button-secondary { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-stone-200 bg-white px-4 py-2 text-sm font-medium text-stone-700 hover:bg-stone-50 disabled:cursor-wait disabled:opacity-60; }
+  .progress-meter { @apply block h-2.5 w-full appearance-none overflow-hidden rounded-full border-0 bg-stone-100; }
+  .progress-meter::-webkit-progress-bar { @apply rounded-full bg-stone-100; }
+  .progress-meter::-webkit-progress-value { border-radius: 9999px; background: var(--progress-color, #20815e); }
+  .progress-meter::-moz-progress-bar { border-radius: 9999px; background: var(--progress-color, #20815e); }
+  .progress-wants { --progress-color: #c9864a; }
+  .progress-savings { --progress-color: #6c85a0; }
+}
