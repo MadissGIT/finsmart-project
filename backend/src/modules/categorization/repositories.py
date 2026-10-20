@@ -28,3 +28,7 @@ class CategorizationRepository:
 
     async def get_category(self, category_id: int) -> Category | None:
         return await self._session.get(Category, category_id)
+
+    async def list_categories(self) -> list[Category]:
+        result = await self._session.scalars(select(Category).order_by(Category.id))
+        return list(result.all())

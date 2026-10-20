@@ -6,13 +6,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from src.db.database import get_async_session
 from src.modules.categorization.repositories import CategorizationRepository
 from src.modules.categorization.service import CategorizationService
-from src.routes.categories.repositories import CategoryRepository
-
-
-def get_category_repository(
-    session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> CategoryRepository:
-    return CategoryRepository(session)
 
 
 def get_categorization_service(

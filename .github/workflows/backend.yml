@@ -10,6 +10,9 @@ permissions:
 
 jobs:
   checks:
+    defaults:
+      run:
+        working-directory: backend
     runs-on: ubuntu-latest
     services:
       postgres:
@@ -33,6 +36,7 @@ jobs:
       - uses: astral-sh/setup-uv@v6
         with:
           enable-cache: true
+          working-directory: backend
       - run: uv sync --locked
       - run: uv run ruff check src tests
       - run: uv run ruff format --check src tests
@@ -52,6 +56,10 @@ jobs:
           curl --fail http://127.0.0.1:8000/api/v1/health/ready
           curl --fail http://127.0.0.1:8000/api/v1/categories > /tmp/categories.json
           python3 -c 'import json; assert len(json.load(open("/tmp/categories.json"))) == 11'
+          curl --fail --request OPTIONS http://127.0.0.1:8000/api/v1/categories \
+            --header 'Origin: http://localhost:5173' \
+            --header 'Access-Control-Request-Method: POST' \
+            --header 'Access-Control-Request-Headers: authorization,content-type'
       - run: docker compose run --build --rm test
       - run: docker compose exec -T api alembic check
       - name: Verify restart with existing data

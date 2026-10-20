@@ -8,7 +8,7 @@ from sqlalchemy.engine import URL, make_url
 class ProjectSettings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="FINSMART_")
 
-    cors_origins: list[str] = Field(default_factory=list)
+    cors_origins: list[str] = Field(default_factory=lambda: ["http://localhost:5173"])
 
 
 class PostgresSettings(BaseSettings):

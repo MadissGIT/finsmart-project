@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from decimal import Decimal
 from uuid import UUID
 
-from src.db.models import BudgetGroup, OperationType, RuleType
+from src.db.models import BudgetGroup, Category, OperationType, RuleType
 from src.modules.categorization.repositories import CategorizationRepository
 
 
@@ -57,3 +57,6 @@ class CategorizationService:
             msg = "Fallback category is missing; apply the initial migration"
             raise RuntimeError(msg)
         return CategorizationResult(category.id, category.name, Decimal("0.00"), True)
+
+    async def list_categories(self) -> list[Category]:
+        return await self._categorization_repository.list_categories()

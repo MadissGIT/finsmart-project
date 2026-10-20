@@ -15,11 +15,11 @@ services:
 
   api:
     build:
-      context: .
+      context: ./backend
       target: runtime
     environment:
       FINSMART_DATABASE_URL: postgresql+asyncpg://finsmart:finsmart_local@db:5432/finsmart
-      FINSMART_CORS_ORIGINS: '${FINSMART_CORS_ORIGINS:-[]}'
+      FINSMART_CORS_ORIGINS: '${FINSMART_CORS_ORIGINS:-["http://localhost:5173"]}'
     ports:
       - "127.0.0.1:${FINSMART_API_PORT:-8000}:8000"
     depends_on:
@@ -43,7 +43,7 @@ services:
   test:
     profiles: [test]
     build:
-      context: .
+      context: ./backend
       target: development
     environment:
       FINSMART_TEST_DATABASE_URL: postgresql+asyncpg://finsmart:finsmart_local@db:5432/finsmart

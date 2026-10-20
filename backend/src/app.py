@@ -22,7 +22,7 @@ app = FastAPI(title="ФинСмарт API", version="0.1.0", lifespan=lifespan)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_project_settings().cors_origins,
-    allow_methods=["GET"],
+    allow_methods=["*"],
     allow_headers=["Authorization", "Content-Type"],
 )
 app.include_router(health_router, prefix="/api/v1")

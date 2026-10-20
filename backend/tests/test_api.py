@@ -8,8 +8,8 @@ from sqlalchemy.exc import OperationalError
 from src.app import app
 from src.core.settings import get_postgres_settings
 from src.db.models import BudgetGroup, Category
-from src.routes.categories.dependencies import get_category_repository
-from src.routes.categories.repositories import CategoryRepository
+from src.modules.categorization.service import CategorizationService
+from src.routes.categories.dependencies import get_categorization_service
 
 
 def test_liveness_and_openapi_without_database() -> None:
@@ -27,16 +27,17 @@ def test_liveness_and_openapi_without_database() -> None:
 
 
 def test_categories_serialize_enum() -> None:
-    repository = AsyncMock(spec=CategoryRepository)
-    repository.list_categories.return_value = [
+    service = AsyncMock(spec=CategorizationService)
+    service.list_categories.return_value = [
         Category(id=1, name="Супермаркеты", budget_group=BudgetGroup.NEEDS),
     ]
-    app.dependency_overrides[get_category_repository] = lambda: repository
+    app.dependency_overrides[get_categorization_service] = lambda: service
     try:
         with TestClient(app) as client:
             response = client.get("/api/v1/categories")
         assert response.status_code == 200
         assert response.json() == [{"id": 1, "name": "Супермаркеты", "budget_group": "NEEDS"}]
+        service.list_categories.assert_awaited_once_with()
     finally:
         app.dependency_overrides.clear()
 
@@ -72,7 +73,7 @@ def test_readiness_on_database_failure(error: Exception) -> None:
     assert response.json() == {"detail": "Database unavailable"}
 
 
-def test_cors_is_closed_by_default() -> None:
+def test_cors_rejects_untrusted_origin() -> None:
     with TestClient(app) as client:
         response = client.options(
             "/api/v1/categories",
@@ -103,3 +104,19 @@ def test_readiness_requires_current_migration(
     ):
         response = client.get("/api/v1/health/ready")
     assert response.status_code == expected_status
+
+
+@pytest.mark.parametrize("method", ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"])
+def test_local_frontend_preflight_allows_api_methods(method: str) -> None:
+    with TestClient(app) as client:
+        response = client.options(
+            "/api/v1/categories",
+            headers={
+                "Origin": "http://localhost:5173",
+                "Access-Control-Request-Method": method,
+                "Access-Control-Request-Headers": "authorization,content-type",
+            },
+        )
+    assert response.status_code == 200
+    assert response.headers["access-control-allow-origin"] == "http://localhost:5173"
+    assert method in response.headers["access-control-allow-methods"].split(", ")

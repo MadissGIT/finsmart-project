@@ -16,7 +16,6 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncSession
 from src.db.models import (
     Base,
     BudgetGroup,
-    Category,
     CategoryRule,
     Goal,
     GoalContribution,
@@ -43,7 +42,9 @@ def test_migration_matches_models_and_seed(
         async with AsyncSession(
             bind=connection, join_transaction_mode="create_savepoint"
         ) as session:
-            categories = list((await session.scalars(select(Category).order_by(Category.id))).all())
+            categories = await CategorizationService(
+                CategorizationRepository(session)
+            ).list_categories()
             assert [category.id for category in categories] == list(range(1, 12))
             assert categories[4].name == "Кафе и рестораны"
             assert categories[-1].budget_group is BudgetGroup.OTHER
