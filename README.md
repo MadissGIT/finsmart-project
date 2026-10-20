@@ -30,3 +30,18 @@ docker compose run --build --rm test
 
 [Подробная инструкция: настройки, остановка, логи и проверки](backend/README.md).
 [Архитектура бэкенда](backend/docs/architecture.md).
+
+## Короткие команды через just
+
+Если установлен [just](https://just.systems/man/en/), из корня репозитория:
+
+```bash
+just up
+just check
+just logs
+just down
+```
+
+`just check` запускает Ruff, проверку типов ty и тесты в Docker. Python на хосте
+по-прежнему не нужен. Отдельно доступны `just lint`, `just typecheck`, `just test`
+и `just migration-check`. Команда `just` выводит весь список.

@@ -73,11 +73,15 @@ docker compose up --build --wait --wait-timeout 180
 
 ### Проверки в Docker
 
+При установленном `just` все проверки запускаются из корня: `just check`.
+Отдельно: `just lint`, `just typecheck`, `just test`, `just migration-check`.
+Эквивалентные команды Docker:
+
 ```bash
 docker compose run --build --rm test
 docker compose run --rm test ruff check src tests
 docker compose run --rm test ruff format --check src tests
-docker compose run --rm test mypy src
+docker compose run --rm test ty check src
 docker compose exec api alembic check
 ```
 

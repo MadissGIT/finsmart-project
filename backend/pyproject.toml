@@ -17,9 +17,9 @@ dependencies = [
 dev = [
     "asyncpg-stubs>=0.32.0",
     "httpx>=0.28,<0.29",
-    "mypy>=1.19,<2",
     "pytest>=9,<10",
     "ruff>=0.14,<1",
+    "ty>=0.0.90",
 ]
 
 [tool.ruff]
@@ -31,11 +31,6 @@ select = [
     "E", "F", "I", "UP", "B", "ASYNC", "A", "C4", "DTZ", "T20", "SIM", "RET", "PTH",
     "RUF005", "RUF006", "RUF012", "RUF013", "RUF015", "RUF019", "RUF100",
 ]
-
-[tool.mypy]
-python_version = "3.13"
-strict = true
-plugins = ["pydantic.mypy"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

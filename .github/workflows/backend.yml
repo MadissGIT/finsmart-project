@@ -40,7 +40,7 @@ jobs:
       - run: uv sync --locked
       - run: uv run ruff check src tests
       - run: uv run ruff format --check src tests
-      - run: uv run mypy src
+      - run: uv run ty check src
       - run: uv run pytest
       - run: uv run alembic upgrade head
       - run: uv run alembic check
@@ -49,8 +49,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      - uses: extractions/setup-just@v4
       - run: docker compose config --quiet
-      - run: docker compose up --build --wait --wait-timeout 180
+      - run: just up
       - name: Check API and seeded categories
         run: |
           curl --fail http://127.0.0.1:8000/api/v1/health/ready
@@ -60,8 +61,8 @@ jobs:
             --header 'Origin: http://localhost:5173' \
             --header 'Access-Control-Request-Method: POST' \
             --header 'Access-Control-Request-Headers: authorization,content-type'
-      - run: docker compose run --build --rm test
-      - run: docker compose exec -T api alembic check
+      - run: just check
+      - run: just migration-check
       - name: Verify restart with existing data
         run: docker compose restart api && docker compose up --wait --wait-timeout 60
       - name: Container logs
@@ -69,4 +70,4 @@ jobs:
         run: docker compose logs
       - name: Stop containers
         if: always()
-        run: docker compose down
+        run: just down
