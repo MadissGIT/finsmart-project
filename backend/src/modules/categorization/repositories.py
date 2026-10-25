@@ -29,6 +29,14 @@ class CategorizationRepository:
     async def get_category(self, category_id: int) -> Category | None:
         return await self._session.get(Category, category_id)
 
+    async def list_user_rules(self, user_id: UUID) -> dict[str, Category]:
+        result = await self._session.execute(
+            select(UserRule.merchant_name, Category)
+            .join(Category, UserRule.category_id == Category.id)
+            .where(UserRule.user_id == user_id),
+        )
+        return dict(result.tuples().all())
+
     async def list_categories(self) -> list[Category]:
         result = await self._session.scalars(select(Category).order_by(Category.id))
         return list(result.all())
