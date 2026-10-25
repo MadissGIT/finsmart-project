@@ -17,6 +17,7 @@ COPY src ./src
 FROM base AS development
 RUN uv sync --locked --no-install-project
 COPY tests ./tests
+COPY scripts ./scripts
 CMD ["pytest"]
 
 FROM base AS runtime

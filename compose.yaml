@@ -20,6 +20,8 @@ services:
     environment:
       FINSMART_DATABASE_URL: postgresql+asyncpg://finsmart:finsmart_local@db:5432/finsmart
       FINSMART_CORS_ORIGINS: '${FINSMART_CORS_ORIGINS:-["http://localhost:5173"]}'
+      FINSMART_FINANCIAL_TIMEZONE: ${FINSMART_FINANCIAL_TIMEZONE:-Europe/Moscow}
+      FINSMART_JWT_SECRET:
     ports:
       - "127.0.0.1:${FINSMART_API_PORT:-8000}:8000"
     depends_on:

@@ -20,12 +20,12 @@ test:
 
 # Проверить линтер и форматирование.
 lint:
-    docker compose run --build --rm test ruff check src tests
-    docker compose run --rm test ruff format --check src tests
+    docker compose run --build --rm test ruff check src tests scripts
+    docker compose run --rm test ruff format --check src tests scripts
 
 # Проверить типы через ty.
 typecheck:
-    docker compose run --build --rm test ty check src
+    docker compose run --build --rm test ty check src scripts
 
 # Запустить все проверки.
 check: lint typecheck test

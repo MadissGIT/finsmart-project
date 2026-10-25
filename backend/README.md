@@ -1,7 +1,7 @@
 # ФинСмарт Backend
 
-Foundation первой недели: FastAPI, PostgreSQL, модели SQLAlchemy,
-Alembic и категоризация операций по справочнику из проектной документации.
+FastAPI, PostgreSQL, JWT-авторизация, импорт банковских выписок CSV/XLSX,
+категоризация и аналитика бюджета 50/30/20.
 
 ## Локальный запуск через Docker
 
@@ -24,7 +24,7 @@ docker compose version
 ### Первый запуск
 
 ```bash
-git clone --branch backend-week-1 https://github.com/MadissGIT/finsmart-project.git
+git clone https://github.com/MadissGIT/finsmart-project.git
 cd finsmart-project
 docker compose up --build --wait --wait-timeout 180
 ```
@@ -33,7 +33,7 @@ docker compose up --build --wait --wait-timeout 180
 Она соберёт образ API из `backend/` с зависимостями из `backend/uv.lock`, запустит PostgreSQL 16,
 дождётся готовности БД, применит миграции и запустит API. Команда завершится
 после успешной проверки readiness; контейнеры продолжат работать в фоне.
-Миграция загрузит 11 категорий и 38 правил категоризации.
+Миграция загрузит 11 категорий и 47 правил категоризации.
 
 - [Swagger UI](http://127.0.0.1:8000/docs) — документация и выполнение запросов.
 - [Readiness](http://127.0.0.1:8000/api/v1/health/ready) — ожидается `{"status":"ok"}`.
@@ -44,9 +44,15 @@ PostgreSQL доступен только контейнерам, его порт
 Локальные реквизиты заданы в `compose.yaml`. API опубликован на `127.0.0.1:8000`.
 Данные сохраняются в Docker volume `postgres_data` между перезапусками.
 
-Все доступные маршруты публичные и не возвращают пользовательские данные.
-Регистрация, JWT, импорт, CRUD транзакций, аналитика, цели и скидки относятся
-к следующим неделям; их маршруты пока не реализованы.
+Health и справочник категорий доступны публично. Импорт, операции, профиль и
+бюджет требуют Bearer-токен: зарегистрируйтесь через `/api/v1/auth/register`
+и вставьте полученный `access_token` в кнопку Authorize в Swagger.
+[Подробности второй недели](docs/week-2.md).
+
+Для сохранения сессий между перезапусками передайте `FINSMART_JWT_SECRET`
+через окружение перед запуском Compose: случайную строку длиной от 32 символов.
+Без этой переменной ключ генерируется на процесс, после перезапуска API
+потребуется повторный вход. Для нескольких процессов нужен общий постоянный ключ.
 
 ### Логи, остановка и повторный запуск
 
@@ -79,9 +85,9 @@ docker compose up --build --wait --wait-timeout 180
 
 ```bash
 docker compose run --build --rm test
-docker compose run --rm test ruff check src tests
-docker compose run --rm test ruff format --check src tests
-docker compose run --rm test ty check src
+docker compose run --rm test ruff check src tests scripts
+docker compose run --rm test ruff format --check src tests scripts
+docker compose run --rm test ty check src scripts
 docker compose exec api alembic check
 ```
 
@@ -131,8 +137,12 @@ Compose запускается из корня репозитория; пути 
 - `src/db` — async engine, сессии и модели данных.
 - `src/migrations` — версия схемы и фиксированный seed первой недели.
 - `src/modules/categorization` — сервис и репозиторий правил, без HTTP-зависимостей.
-- `src/routes/categories` — DTO, DI и HTTP-маршруты справочника.
-- Доступ к категориям: router → CategorizationService → CategorizationRepository.
+- `src/modules/statements` — CSV/XLSX, нормализация, импорт и исправление операций.
+- `src/modules/auth` — пароли, JWT и refresh-сессии.
+- `src/modules/analytics` — агрегаты и бюджет 50/30/20.
+- `src/routes` — DTO, DI и тонкие HTTP-маршруты.
+- Доступ к данным: router → service → repository.
+- `scripts` — smoke-проверка API и оценка точности по размеченным выпискам.
 - `tests` — unit, API и PostgreSQL integration tests.
 
 Решения по модели данных, порядку правил и границам недели:
