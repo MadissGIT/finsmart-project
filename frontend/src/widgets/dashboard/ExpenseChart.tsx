@@ -1,3 +1,4 @@
+import { useId } from 'react';
 import { Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import type { CategoryExpense } from '@/entities/analytics/model/types';
 import { formatMoney } from '@/shared/lib/format';
@@ -6,38 +7,38 @@ import { toCategoryChartData } from './model/category-chart';
 interface Props {
   categories: CategoryExpense[];
   total: number;
+  compact?: boolean;
+  title?: string;
 }
 
-export function ExpenseChart({ categories, total }: Props) {
+export function ExpenseChart({ categories, total, compact = false, title = 'Расходы по категориям' }: Props) {
+  const id = useId();
   const data = toCategoryChartData(categories, total);
-
   return (
-    <section className="panel min-w-0" aria-labelledby="expenses-title">
-      <h2 id="expenses-title" className="font-semibold">Расходы по категориям</h2>
+    <section className="panel min-w-0" aria-labelledby={id}>
+      <h2 id={id} className="font-semibold">{title}</h2>
       {total > 0 && data.length > 0 ? (
-        <>
-          <div className="relative my-3 h-60 min-w-0" aria-hidden="true">
+        <div className={compact ? 'expense-compact' : ''}>
+          <div className="expense-chart" aria-hidden="true">
             <ResponsiveContainer width="100%" height="100%" minWidth={0}>
               <PieChart accessibilityLayer={false}>
-                <Pie data={data} dataKey="value" nameKey="name" innerRadius={70} outerRadius={96} paddingAngle={3} stroke="none" isAnimationActive={false} />
+                <Pie data={data} dataKey="value" nameKey="name" innerRadius={compact ? 43 : 70} outerRadius={compact ? 58 : 96} paddingAngle={compact ? 1 : 3} stroke="none" isAnimationActive={false} />
                 <Tooltip formatter={(value) => formatMoney(Number(value))} />
               </PieChart>
             </ResponsiveContainer>
-            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-xs text-stone-500">Всего расходов</span>
-              <span className="mt-1 text-lg font-semibold tabular-nums">{formatMoney(total)}</span>
-            </div>
+            <div className="expense-total">{compact ? <><strong>{formatMoney(total)}</strong><span>всего</span></> : <><span>Всего расходов</span><strong>{formatMoney(total)}</strong></>}</div>
           </div>
-          <ul className="space-y-3 text-sm" aria-label="Суммы расходов по категориям">
+          <ul className="expense-legend" aria-label="Суммы расходов по категориям">
             {data.map((item) => (
-              <li key={item.name} className="flex items-center justify-between gap-3">
-                <span className="flex min-w-0 items-center gap-2 text-stone-600"><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: item.fill }} />{item.name}</span>
-                <span className="shrink-0 font-medium tabular-nums">{formatMoney(item.value)}</span>
+              <li key={item.name}>
+                <span className="expense-name"><span className="expense-dot" style={{ background: item.fill }} />{item.name}</span>
+                {compact ? <span className="expense-percent">{Math.round(item.value / total * 100)}%</span> : null}
+                <span className="expense-amount">{formatMoney(item.value)}</span>
               </li>
             ))}
           </ul>
-        </>
-      ) : <p className="py-16 text-center text-sm text-stone-500">За этот период расходов пока нет.</p>}
+        </div>
+      ) : <div className="expense-empty"><div className="expense-empty-ring" aria-hidden="true" /><p>За этот период расходов пока нет.</p></div>}
     </section>
   );
 }

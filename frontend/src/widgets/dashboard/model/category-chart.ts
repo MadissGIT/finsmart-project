@@ -6,7 +6,7 @@ export interface CategoryChartItem {
   fill: string;
 }
 
-const colors = ['#20815e', '#c9864a', '#6c85a0', '#a58ab1', '#b0a05b'];
+const colors = ['#8d7bf3', '#72b6ed', '#79c5a6', '#93cc65', '#eebb65', '#ca99ed', '#98cbe1', '#cfd3dc'];
 
 export function toCategoryChartData(categories: CategoryExpense[], total: number): CategoryChartItem[] {
   const items = categories.filter((category) => category.amount > 0).map((category, index) => ({

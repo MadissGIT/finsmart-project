@@ -1,26 +1,21 @@
-import { UserRound } from 'lucide-react';
+import { useState } from 'react';
+import { Bell, CircleUserRound } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { formatMoney } from '@/shared/lib/format';
-import type { UserProfile } from '@/entities/user/model/types';
+import { Brand } from '@/shared/ui/Brand';
+import { Modal } from '@/shared/ui/Modal';
 
-interface Props {
-  balance?: number;
-  profile?: UserProfile;
-}
-
-export function Header({ balance, profile }: Props) {
+export function Header() {
+  const [notifications, setNotifications] = useState(false);
   return (
-    <header className="flex min-h-20 items-center justify-between gap-3 border-b border-stone-200 bg-white px-4 sm:px-8 lg:px-10">
-      <div>
-        <p className="text-xs text-stone-500">Общий баланс</p>
-        <p className="mt-1 text-lg font-semibold tabular-nums" aria-label={balance === undefined ? 'Баланс пока недоступен' : undefined}>
-          {balance === undefined ? '— ₽' : formatMoney(balance)}
-        </p>
-      </div>
-      <Link to="/auth" className="flex min-h-11 items-center gap-2.5 rounded-lg px-2 text-sm font-medium hover:bg-stone-50">
-        <span className="rounded-full bg-stone-100 p-2.5 text-stone-500"><UserRound size={18} aria-hidden="true" /></span>
-        {profile?.full_name ?? 'Войти'}
+    <header className="app-header">
+      <Link className="header-brand" to="/" aria-label="ФинСмарт — на главную">
+        <Brand /><span className="brand-caption">Умные деньги — большие цели</span>
       </Link>
+      <div className="header-actions">
+        <button className="icon-button" type="button" aria-label="Уведомления" onClick={() => setNotifications(true)}><Bell size={20} aria-hidden="true" /></button>
+        <Link className="icon-button" to="/auth" aria-label="Профиль"><CircleUserRound size={23} aria-hidden="true" /></Link>
+      </div>
+      <Modal open={notifications} title="Уведомления" onClose={() => setNotifications(false)}><p>Новых уведомлений пока нет. Сейчас Вы просматриваете демонстрацию ФинСмарт.</p></Modal>
     </header>
   );
 }

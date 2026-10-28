@@ -1,26 +1,35 @@
+import { useState } from 'react';
+import { Wallet } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { ArrowRight } from 'lucide-react';
-import { PageHeading } from '@/shared/ui/PageHeading';
-import { SummaryCards } from '@/widgets/dashboard/SummaryCards';
-import { Diagnostics } from '@/widgets/dashboard/Diagnostics';
-import { ApiStatus } from '@/features/check-api/ApiStatus';
-import { demoDashboard } from '@/entities/analytics/model/demo-dashboard';
+import { useDemoSession } from '@/features/onboarding/model/context';
+import { Modal } from '@/shared/ui/Modal';
+import { ExpenseChart } from '@/widgets/dashboard/ExpenseChart';
+import { BudgetStrip, FinancialHealth, GoalPreview } from '@/widgets/dashboard/DashboardWidgets';
 
 export default function DashboardPage() {
+  const { session } = useDemoSession();
+  const [healthHelp, setHealthHelp] = useState(false);
+  const firstName = session.fullName.trim().split(/\s+/)[0];
+
   return (
-    <>
-      <PageHeading title="Обзор финансов" description="Всё важное о твоих деньгах на одном экране." />
-      <div className="mb-6 flex flex-wrap items-center justify-between gap-2 text-sm">
-        <p className="font-medium">Октябрь 2026</p>
-        <span className="rounded-full bg-stone-200/70 px-3 py-1 text-xs font-medium text-stone-600">Демонстрационные данные</span>
+    <div className="dashboard-page">
+      <div className="dashboard-heading"><h1>{firstName ? 'Привет, ' + firstName + '!' : 'Привет!'}</h1><p>Твой финансовый обзор</p></div>
+      <dl className="dashboard-summary">
+        <div className="summary-tile summary-tile-balance"><Wallet aria-hidden="true" /><div><dt>Баланс</dt><dd>—</dd><small>Нет данных</small></div></div>
+        <div className="summary-tile summary-tile-expenses"><Wallet aria-hidden="true" /><div><dt>Расходы</dt><dd>—</dd><small>Нет операций</small></div></div>
+      </dl>
+      <div className="dashboard-grid">
+        <ExpenseChart categories={[]} total={0} title="Структура расходов" compact />
+        <div className="dashboard-right">
+          <FinancialHealth score={null} onHelp={() => setHealthHelp(true)} />
+          <BudgetStrip />
+        </div>
       </div>
-      <div className="space-y-5">
-        <SummaryCards summary={demoDashboard.summary} />
-        <p className="text-sm leading-6 text-stone-500">Это пример из проектной документации. Личные данные появятся после подключения аккаунта и операций.</p>
-        <Diagnostics diagnostics={demoDashboard.diagnostics} />
-        <Link to="/analytics" className="button-primary">Посмотреть аналитику <ArrowRight size={16} aria-hidden="true" /></Link>
-        <ApiStatus />
-      </div>
-    </>
+      <GoalPreview />
+      <Modal open={healthHelp} title="Финансовое здоровье" onClose={() => setHealthHelp(false)}>
+        <p>Пока нет данных для оценки. Здесь появятся рейтинг и рекомендации на основе Ваших операций.</p>
+        <Link to="/analytics" className="button-primary" onClick={() => setHealthHelp(false)}>Посмотреть аналитику</Link>
+      </Modal>
+    </div>
   );
 }

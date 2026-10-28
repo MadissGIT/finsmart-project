@@ -2,7 +2,7 @@ name: Frontend
 
 on:
   push:
-    branches: [main, frontend-week-1]
+    branches: [main, 'frontend-*']
     paths: ['frontend/**', '.github/workflows/frontend.yml']
   pull_request:
     paths: ['frontend/**', '.github/workflows/frontend.yml']
@@ -29,3 +29,9 @@ jobs:
       - run: npm run build
       - run: npx playwright install --with-deps chromium
       - run: npm run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: frontend-browser-traces
+          path: frontend/test-results
+          retention-days: 7

@@ -10,9 +10,7 @@ export function AppLayout() {
       <Sidebar />
       <div className="min-h-dvh md:pl-60">
         <Header />
-        <main id="main-content" tabIndex={-1} className="mx-auto max-w-7xl px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-7 sm:px-8 md:pb-10 lg:px-10 lg:pt-9">
-          <Outlet />
-        </main>
+        <main id="main-content" tabIndex={-1} className="app-content"><Outlet /></main>
       </div>
       <MobileNav />
     </>
