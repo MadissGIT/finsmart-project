@@ -1,3 +1,4 @@
+from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -45,17 +46,30 @@ class TransactionRepository:
         return imported
 
     async def list_transactions(
-        self, *, user_id: UUID, limit: int, offset: int
+        self, user_id: UUID, limit: int, offset: int, start: datetime | None, end: datetime | None
     ) -> list[tuple[Transaction, Category]]:
-        result = await self._session.execute(
+        query = (
             select(Transaction, Category)
             .join(Category, Transaction.category_id == Category.id)
             .where(Transaction.user_id == user_id)
             .order_by(Transaction.transaction_date.desc(), Transaction.id)
             .limit(limit)
-            .offset(offset),
+            .offset(offset)
         )
+        if start is not None:
+            query = query.where(Transaction.transaction_date >= start)
+        if end is not None:
+            query = query.where(Transaction.transaction_date < end)
+        result = await self._session.execute(query)
         return [(transaction, category) for transaction, category in result.tuples()]
+
+    async def save_transaction(self, transaction: Transaction) -> None:
+        self._session.add(transaction)
+        await self._session.commit()
+
+    async def delete_transaction(self, transaction: Transaction) -> None:
+        await self._session.delete(transaction)
+        await self._session.commit()
 
     async def get_transaction(self, *, user_id: UUID, transaction_id: UUID) -> Transaction | None:
         result = await self._session.scalars(

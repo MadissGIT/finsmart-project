@@ -385,3 +385,193 @@ def test_import_1000_rows_performance(api_postgres, record_property) -> None:
         assert elapsed < 3
 
     runner.run(scenario())
+
+
+MANUAL_TRANSACTION = {
+    "amount": 1250.50,
+    "operation_type": "DEBIT",
+    "category_id": 1,
+    "transaction_date": "2026-10-02T12:00:00+03:00",
+    "merchant_name": "OOO SAMOKAT",
+    "comment": "Продукты",
+    "mcc_code": "5411",
+}
+
+
+def test_manual_transaction_crud_updates_budget(api_postgres) -> None:
+    runner, client, connection = api_postgres
+
+    async def scenario() -> None:
+        token = await register(client, "crud@example.com")
+        client.headers["Authorization"] = f"Bearer {token['access_token']}"
+        response = await client.post("/api/v1/transactions", json=MANUAL_TRANSACTION)
+        assert response.status_code == 201, response.text
+        created = response.json()
+        assert created["merchant_name"] == "samokat"
+        assert created["bank_source"] == "MANUAL"
+        assert created["comment"] == "Продукты"
+        assert created["mcc_code"] == "5411"
+        assert created["confidence"] == 1
+        assert not created["requires_review"]
+        url = f"/api/v1/transactions/{created['id']}"
+        assert (await client.get(url)).json() == created
+        changed = await client.patch(
+            url,
+            json={
+                "amount": 777.25,
+                "operation_type": "CREDIT",
+                "category_id": 10,
+                "transaction_date": "2026-10-03T13:00:00+03:00",
+                "merchant_name": "Зарплата",
+                "comment": None,
+                "mcc_code": None,
+            },
+        )
+        assert changed.status_code == 200, changed.text
+        data = changed.json()
+        assert data["amount"] == 777.25
+        assert data["operation_type"] == "CREDIT"
+        assert data["category_id"] == 10
+        assert data["category_name"] == "Зарплата и доходы"
+        assert data["merchant_name"] == "зарплата"
+        assert data["comment"] is None
+        assert data["mcc_code"] is None
+        assert data["transaction_date"] == "2026-10-03T10:00:00Z"
+        budget_url = "/api/v1/analytics/budget?from_date=2026-10-01&to_date=2026-10-31"
+        assert (await client.get(budget_url)).json()["summary"] == {
+            "total_income": 777.25,
+            "total_expense": 0,
+            "net_balance": 777.25,
+        }
+        async with AsyncSession(bind=connection) as session:
+            stored = await session.get(Transaction, created["id"])
+            assert stored.import_hash is None
+            assert stored.raw_description == "OOO SAMOKAT"
+        deleted = await client.delete(url)
+        assert deleted.status_code == 204
+        assert deleted.content == b""
+        assert (await client.get(url)).status_code == 404
+        assert (await client.delete(url)).status_code == 404
+        assert (await client.get("/api/v1/transactions")).json() == []
+        assert (await client.get(budget_url)).json()["summary"]["total_income"] == 0
+
+    runner.run(scenario())
+
+
+def test_transaction_crud_requires_owner(api_postgres) -> None:
+    runner, client, _ = api_postgres
+
+    async def scenario() -> None:
+        owner = await register(client, "owner@example.com")
+        headers = {"Authorization": f"Bearer {owner['access_token']}"}
+        created = await client.post(
+            "/api/v1/transactions", headers=headers, json=MANUAL_TRANSACTION
+        )
+        url = f"/api/v1/transactions/{created.json()['id']}"
+        for method, path, payload in [
+            ("GET", url, None),
+            ("PATCH", url, {"amount": 10}),
+            ("DELETE", url, None),
+            ("POST", "/api/v1/transactions", MANUAL_TRANSACTION),
+        ]:
+            response = await client.request(method, path, json=payload)
+            assert response.status_code == 401
+        other = await register(client, "outsider@example.com")
+        client.headers["Authorization"] = f"Bearer {other['access_token']}"
+        for method, payload in [("GET", None), ("PATCH", {"amount": 10}), ("DELETE", None)]:
+            assert (await client.request(method, url, json=payload)).status_code == 404
+        assert (await client.get("/api/v1/transactions")).json() == []
+        assert (await client.get(url, headers=headers)).json()["amount"] == 1250.5
+
+    runner.run(scenario())
+
+
+def test_transaction_date_filters_use_inclusive_local_days(api_postgres) -> None:
+    runner, client, _ = api_postgres
+
+    async def scenario() -> None:
+        token = await register(client, "dates@example.com")
+        client.headers["Authorization"] = f"Bearer {token['access_token']}"
+        for index, timestamp in enumerate(
+            [
+                "2026-10-01T20:59:59Z",
+                "2026-10-01T21:00:00Z",
+                "2026-10-02T20:59:59Z",
+                "2026-10-02T21:00:00Z",
+            ]
+        ):
+            response = await client.post(
+                "/api/v1/transactions",
+                json={**MANUAL_TRANSACTION, "transaction_date": timestamp, "amount": index + 1},
+            )
+            assert response.status_code == 201
+        url = "/api/v1/transactions"
+        day = {"from_date": "2026-10-02", "to_date": "2026-10-02"}
+        assert [row["amount"] for row in (await client.get(url, params=day)).json()] == [3, 2]
+        page = await client.get(url, params={**day, "limit": 1, "offset": 1})
+        assert [row["amount"] for row in page.json()] == [2]
+        assert len((await client.get(url, params={"from_date": "2026-10-02"})).json()) == 3
+        assert len((await client.get(url, params={"to_date": "2026-10-02"})).json()) == 3
+        for params in [
+            {"from_date": "2026-10-03", "to_date": "2026-10-02"},
+            {"from_date": "0001-01-01"},
+            {"to_date": "9999-12-31"},
+        ]:
+            assert (await client.get(url, params=params)).status_code == 422
+
+    runner.run(scenario())
+
+
+def test_transaction_validation_rejects_invalid_changes_atomically(api_postgres) -> None:
+    runner, client, _ = api_postgres
+
+    async def scenario() -> None:
+        token = await register(client, "validation@example.com")
+        client.headers["Authorization"] = f"Bearer {token['access_token']}"
+        created = (await client.post("/api/v1/transactions", json=MANUAL_TRANSACTION)).json()
+        url = f"/api/v1/transactions/{created['id']}"
+        invalid_fields = [
+            {"amount": 0},
+            {"amount": -1},
+            {"amount": "1.001"},
+            {"amount": "1000000000000"},
+            {"transaction_date": "2026-10-02T12:00:00"},
+            {"merchant_name": "   "},
+            {"merchant_name": "OOO"},
+            {"comment": "x" * 2001},
+            {"mcc_code": "ABC1"},
+            {"category_id": 9999},
+            {"user_id": created["id"]},
+        ]
+        for fields in invalid_fields:
+            assert (
+                await client.post("/api/v1/transactions", json={**MANUAL_TRANSACTION, **fields})
+            ).status_code == 422
+            assert (await client.patch(url, json=fields)).status_code == 422
+        for fields in [{}, {"amount": None}, {"category_id": None}, {"merchant_name": None}]:
+            assert (await client.patch(url, json=fields)).status_code == 422
+        assert (await client.get(url)).json() == created
+        assert len((await client.get("/api/v1/transactions")).json()) == 1
+
+    runner.run(scenario())
+
+
+def test_editing_import_preserves_deduplication(api_postgres) -> None:
+    runner, client, _ = api_postgres
+
+    async def scenario() -> None:
+        token = await register(client, "edited-import@example.com")
+        client.headers["Authorization"] = f"Bearer {token['access_token']}"
+        content = (FIXTURES / "tbank.csv").read_bytes()
+        endpoint = "/api/v1/transactions/import-statement"
+        imported = (await client.post(endpoint, files={"file": ("a.csv", content)})).json()
+        transaction = imported["imported_transactions"][0]
+        url = f"/api/v1/transactions/{transaction['id']}"
+        changed = await client.patch(url, json={"amount": 25, "merchant_name": "Новый контрагент"})
+        assert changed.status_code == 200
+        repeated = (await client.post(endpoint, files={"file": ("a.csv", content)})).json()
+        assert repeated["duplicates_skipped"] == 5
+        assert repeated["imported_count"] == 0
+        assert (await client.get(url)).json()["amount"] == 25
+
+    runner.run(scenario())

@@ -137,7 +137,7 @@ Compose запускается из корня репозитория; пути 
 - `src/db` — async engine, сессии и модели данных.
 - `src/migrations` — версия схемы и фиксированный seed первой недели.
 - `src/modules/categorization` — сервис и репозиторий правил, без HTTP-зависимостей.
-- `src/modules/statements` — CSV/XLSX, нормализация, импорт и исправление операций.
+- `src/modules/statements` — CSV/XLSX, нормализация, импорт, CRUD операций и фильтры дат.
 - `src/modules/auth` — пароли, JWT и refresh-сессии.
 - `src/modules/analytics` — агрегаты и бюджет 50/30/20.
 - `src/routes` — DTO, DI и тонкие HTTP-маршруты.

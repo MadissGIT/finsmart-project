@@ -21,4 +21,5 @@ def get_statement_service(
         statement_parser=StatementParser(ZoneInfo(get_project_settings().financial_timezone)),
         categorization_service=categorization_service,
         transaction_repository=TransactionRepository(session),
+        financial_timezone=ZoneInfo(get_project_settings().financial_timezone),
     )

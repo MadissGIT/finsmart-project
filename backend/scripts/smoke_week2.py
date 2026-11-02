@@ -44,6 +44,29 @@ def main() -> None:
             ).status_code
             == 401
         )
+        manual = client.post(
+            "transactions",
+            json={
+                "amount": 250,
+                "operation_type": "DEBIT",
+                "category_id": 1,
+                "transaction_date": "2026-11-02T12:00:00+03:00",
+                "merchant_name": "SAMOKAT",
+            },
+        )
+        manual.raise_for_status()
+        transaction_url = f"transactions/{manual.json()['id']}"
+        assert client.get(transaction_url).json()["amount"] == 250
+        updated = client.patch(transaction_url, json={"amount": 300, "comment": "Smoke CRUD"})
+        updated.raise_for_status()
+        filtered = client.get(
+            "transactions", params={"from_date": "2026-11-02", "to_date": "2026-11-02"}
+        )
+        filtered.raise_for_status()
+        assert len(filtered.json()) == 1
+        assert filtered.json()[0]["amount"] == 300
+        assert client.delete(transaction_url).status_code == 204
+        assert client.get(transaction_url).status_code == 404
 
 
 if __name__ == "__main__":
