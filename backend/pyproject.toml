@@ -1,14 +1,20 @@
 [project]
 name = "finsmart-backend"
-version = "0.1.0"
-description = "ФинСмарт backend foundation"
+version = "0.2.0"
+description = "ФинСмарт: импорт выписок и бюджетная аналитика"
 readme = "README.md"
 requires-python = ">=3.13,<3.14"
 dependencies = [
     "alembic>=1.18,<2",
+    "argon2-cffi>=25.1.0",
     "asyncpg>=0.31,<1",
+    "defusedxml>=0.7.1",
+    "email-validator>=2.3.0",
     "fastapi>=0.115,<0.136",
+    "openpyxl>=3.1.5",
     "pydantic-settings>=2.12,<3",
+    "pyjwt>=2.15.1",
+    "python-multipart>=0.0.32",
     "sqlalchemy[asyncio]>=2.0.46,<2.1",
     "uvicorn>=0.40,<1",
 ]

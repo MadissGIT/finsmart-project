@@ -8,7 +8,7 @@
 Нужны Git и Docker с Compose v2. Из корня репозитория:
 
 ```bash
-git clone --branch backend-week-1 https://github.com/MadissGIT/finsmart-project.git
+git clone https://github.com/MadissGIT/finsmart-project.git
 cd finsmart-project
 docker compose up --build --wait --wait-timeout 180
 ```
@@ -45,3 +45,11 @@ just down
 `just check` запускает Ruff, проверку типов ty и тесты в Docker. Python на хосте
 по-прежнему не нужен. Отдельно доступны `just lint`, `just typecheck`, `just test`
 и `just migration-check`. Команда `just` выводит весь список.
+
+## Возможности второй недели
+
+Добавлены регистрация и вход с JWT, CSV/XLSX-импорт выписок Сбербанка, Т-Банка и ВТБ,
+дедупликация, корректировка категорий и аналитика бюджета 50/30/20.
+Личные маршруты требуют Bearer-токен. Начните с `/api/v1/auth/register` в Swagger.
+
+[Контракты API, формулы, ограничения и приёмка точности](backend/docs/week-2.md).
