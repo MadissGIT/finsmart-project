@@ -88,7 +88,13 @@ def test_cors_rejects_untrusted_origin() -> None:
 
 @pytest.mark.parametrize(
     ("revision", "expected_status"),
-    [("0003_auth", 200), ("0001_foundation", 503), ("outdated_revision", 503), (None, 503)],
+    [
+        ("0004_goal_details", 200),
+        ("0003_auth", 503),
+        ("0001_foundation", 503),
+        ("outdated_revision", 503),
+        (None, 503),
+    ],
 )
 def test_readiness_requires_current_migration(
     revision: str | None,
