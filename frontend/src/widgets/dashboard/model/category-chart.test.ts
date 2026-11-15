@@ -7,6 +7,11 @@ const categories = [
 ];
 
 describe('category chart data', () => {
+  it('сохраняет цвет категории при смене периода и порядка ответа', () => {
+    const first = toCategoryChartData(categories, 150).find((item) => item.id === 'category-2');
+    const filtered = toCategoryChartData([categories[1]], 50)[0];
+    expect(filtered.fill).toBe(first?.fill);
+  });
   it('сохраняет общую сумму, если API вернул только часть категорий', () => {
     const items = toCategoryChartData(categories, 200);
     expect(items.at(-1)).toMatchObject({ name: 'Остальные категории', value: 50 });

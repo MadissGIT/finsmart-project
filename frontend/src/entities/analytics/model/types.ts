@@ -8,6 +8,8 @@ export interface BudgetAllocation {
   amount: number;
   percent: number;
   target_percent: number;
+  target_amount: number;
+  deviation: number;
 }
 
 export interface CategoryExpense {
@@ -34,9 +36,14 @@ export interface DashboardResponse {
     savings: BudgetAllocation;
   };
   by_categories: CategoryExpense[];
-  diagnostics: {
-    health_score: number;
-    persona: string;
-    alerts: DiagnosticAlert[];
-  };
+  income_base: number;
+  deficit_financing: boolean;
+  unallocated_expense: number;
+  budget_score: number;
+}
+
+export interface DiagnosticsSummary {
+  health_score: number;
+  persona: string;
+  alerts: DiagnosticAlert[];
 }

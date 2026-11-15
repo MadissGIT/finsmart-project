@@ -5,7 +5,7 @@ export function OnboardingLayout() {
     <div className="onboarding-background">
       <main className="onboarding-screen" id="main-content">
         <Outlet />
-        <p className="demo-note">Демо-версия · аккаунт на сервере не создаётся</p>
+        <p className="demo-note">ФинСмарт · Умные деньги — большие цели</p>
       </main>
     </div>
   );

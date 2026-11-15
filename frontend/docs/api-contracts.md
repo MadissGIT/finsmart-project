@@ -1,59 +1,72 @@
-# Контракты первой недели
+# Контракты frontend и backend
 
-Типы в `src/entities/*/model/types.ts` описаны по разделу 4 документа
-«Проектная документация: Неделя 1 — Foundation и архитектура».
-Имена полей сохраняют `snake_case`, чтобы DTO соответствовали JSON без неявного переименования.
-UUID, календарные даты и ISO timestamps пока представлены строками, денежные суммы — числами,
-как в примерах. TypeScript проверяет код при сборке и не валидирует JSON во время исполнения.
+Контракты сверены с backend в main после объединения PR 3.
+Базовый адрес клиента — `/api/v1`. Денежные значения API сериализуются числами.
+Типы сохраняют snake_case, чтобы соответствовать JSON сервера.
 
-| Область | Типы |
-| --- | --- |
-| Auth и пользователь | `LoginRequest`, `RegisterRequest`, `AuthResponse`, `UserProfile` |
-| Операции | `CreateTransactionRequest`, `Transaction`, `ImportedTransaction`, `ImportStatementResponse`, `UpdateCategoryRequest`, `UpdateCategoryResponse` |
-| Аналитика | `DashboardResponse`, `DashboardSummary`, `BudgetAllocation`, `CategoryExpense`, `DiagnosticAlert` |
-| Цели | `CreateGoalRequest`, `Goal`, `GoalDepositRequest`, `GoalDepositResponse` |
-| Скидки | `Discount`, `RecommendedDiscountsResponse` |
-| Справочник | `Category`, `BudgetGroup` — сверены с кодом `backend-week-1` |
+## Авторизация
 
-## Особенности черновой спецификации
+- `POST /auth/register`: email, password, full_name. Пароль 10–128 символов,
+  имя обязательно. Возвращает 201 и TokenResponse; существующий email — 409.
+- `POST /auth/login`: email, password. Возвращает TokenResponse или 401.
+- `POST /auth/refresh`: refresh_token. Токен используется однократно и заменяется новым.
+- `GET /users/me`: Bearer access. Поля id, email, full_name, created_at.
 
-- Импорт возвращает дату в поле `date`, а ручное создание — в `transaction_date`.
-  Для этих ответов оставлены разные типы. Унифицировать поля нужно после согласования с backend.
-- В профиле ID называется `id`, в ответе авторизации — `user_id`.
-- `accuracy_rate` и `confidence` — доли от 0 до 1. `percent`, `progress_percent`
-  и `health_score` — значения от 0 до 100. Диапазоны пока не проверяются DTO.
-- `DiagnosticAlert.type` и `GoalDepositRequest.source` оставлены строками:
-  документ приводит примеры, но не закрытый список допустимых значений.
-- В `BudgetGroup` учтено значение `OTHER` из фактического backend.
-- В примере аналитики перечислены две категории на 30 900 ₽ при общем расходе 54 200 ₽.
-  Адаптер графика добавляет остаток 23 300 ₽ как «Остальные категории», чтобы круг
-  соответствовал полной сумме. Проценты категорий не используются как денежные суммы.
-- Виджет распределения 50/30/20 принимает суммы и проценты из API. Формула и база
-  процентов требуют согласования с аналитиком: frontend не пересчитывает их от дохода.
+TokenResponse содержит user_id, email, access_token, refresh_token, token_type=bearer.
+Он не содержит full_name; профиль запрашивается отдельно.
+Дата рождения и предпочтения анкеты не входят в RegisterRequest.
+Токены и профиль проверяются перед использованием; локальные данные анкеты
+не являются авторизацией. Старый демонстрационный ключ не даёт вход в API.
 
-## Подключение аналитики на следующем этапе
+## Дашборд
 
-`src/entities/analytics/api.ts` содержит типизированный `getDashboard(signal?)`:
-`GET /api/v1/analytics/dashboard?period=current_month`.
-Он пока не вызывается страницами, потому что backend первой недели реализует
-только health и categories. Перед подключением реальных данных нужно
-подтвердить контракт, добавить загрузку и ошибку, затем передать
-`summary` и `diagnostics` в готовые виджеты, а `by_categories` — в `ExpenseChart`.
-JWT подключать после согласования с разработчиком авторизации.
+`GET /analytics/budget?from_date=YYYY-MM-DD&to_date=YYYY-MM-DD` требует Bearer.
+Обе даты обязательны при явном фильтре и включены в результат; максимум 367 дней.
+Frontend передаёт границы для любого пресета, не передаёт старый period=current_month.
+Период в ответе сверяется с запрошенным.
 
-## Начальное состояние мобильных экранов
+Ответ включает:
 
-Dashboard и аналитика показывают пустые состояния без заранее заданных
-сумм, категорий расходов, рейтинга и целей. Виджеты графика, бюджета и цели
-принимают данные через props для будущего подключения API.
-Настройки профиля не используются как финансовые операции.
+- period.from и period.to;
+- summary.total_income, total_expense, net_balance;
+- budget_50_30_20.needs, wants, savings, каждый с amount, percent,
+  target_percent, target_amount, deviation;
+- by_categories с category_id, name, amount, percent;
+- income_base, deficit_financing, unallocated_expense, budget_score.
 
-`entities/category/api.ts` обращается к существующему `/categories` и проверяет
-форму ответа во время исполнения. Проверка подключения на `/more` использует
-этот endpoint вместе с `/health/ready`.
+net_balance — разница доходов и расходов за период, а не остаток банковского счёта.
+Проценты могут быть больше 100 при перерасходе, баланс — отрицательным.
+Frontend не пересчитывает серверную базу бюджета, не нормализует показанные доли
+и не выдаёт budget_score за общий рейтинг финансового здоровья.
+Для полос используется ограниченное визуальное заполнение; фактические значения
+и отклонения остаются в подписях.
 
-Регистрационные экраны не вызывают `/auth/register` и `/auth/login`:
-пользователь выбрал демонстрационный сценарий. Провайдер хранит данные демо,
-не JWT и не пароль. Перед подключением backend нужно согласовать дополнительные
-поля профиля: дата рождения, цель использования и диапазон дохода пока
-не входят в `RegisterRequest`.
+Основной endpoint `/analytics/budget` сохранён в ветке backend-week-3.
+Новый `/analytics/dashboard` той ветки с diagnostics имеет другое ограничение
+периода, 1–31 день, и не подменяет контракт budget. Его подключение — отдельная задача.
+
+## Выписки
+
+`POST /transactions/import-statement`: multipart/form-data с file и bank_hint
+(auto, tinkoff, sber, vtb). Максимум 5 МБ, CSV/XLSX. Требует Bearer.
+Frontend показывает total_parsed, imported_count, duplicates_skipped, skipped_rows.
+recognition_rate не используется как измеренная точность категоризации.
+Файл отправляется только после подтверждения импорта пользователем.
+
+## Справочник и готовность
+
+`GET /categories` и `GET /health/ready` публичные.
+Категории проверяются по id, name и budget_group; OTHER разрешён.
+Readiness 503 означает, что сервис пока не готов; HTML с 200 не считается успехом.
+
+## Обработка состояния
+
+401 защищённого запроса запускает единственное обновление refresh для всех
+параллельных запросов. Повторный 401 завершает сессию. Смена аккаунта или выход
+блокируют повтор старого запроса под новой сессией. Временная сетевая ошибка
+refresh не удаляет действующую сессию сама по себе.
+
+На смену периода создаётся новый запрос с AbortController. Отменённый ответ
+не меняет интерфейс, суммы предыдущего диапазона скрываются сразу.
+URL хранит period; для custom дополнительно from_date и to_date.
+Пустой ответ, гость, загрузка и ошибка представлены отдельными состояниями.

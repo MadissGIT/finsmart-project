@@ -1,4 +1,4 @@
-export interface DemoSession {
+export interface OnboardingSession {
   email: string;
   fullName: string;
   goal: string;
@@ -6,11 +6,11 @@ export interface DemoSession {
   stage: 'new' | 'registered' | 'complete';
 }
 
-export const SESSION_KEY = 'finsmart.demo.v1';
-export const emptySession: DemoSession = { email: '', fullName: '', goal: '', incomeRange: '', stage: 'new' };
+export const SESSION_KEY = 'finsmart.onboarding.v1';
+export const emptySession: OnboardingSession = { email: '', fullName: '', goal: '', incomeRange: '', stage: 'new' };
 
-// Пароль и дата рождения не входят в сохраняемые данные демонстрации.
-export function parseSession(value: string | null): DemoSession {
+// Пароль регистрации живёт только в памяти до отправки формы на сервер.
+export function parseSession(value: string | null): OnboardingSession {
   if (!value) return { ...emptySession };
   try {
     const data: unknown = JSON.parse(value);
@@ -23,7 +23,7 @@ export function parseSession(value: string | null): DemoSession {
     return {
       email: String(candidate.email), fullName: String(candidate.fullName),
       goal: String(candidate.goal), incomeRange: String(candidate.incomeRange),
-      stage: candidate.stage as DemoSession['stage'],
+      stage: candidate.stage as OnboardingSession['stage'],
     };
   } catch {
     return { ...emptySession };

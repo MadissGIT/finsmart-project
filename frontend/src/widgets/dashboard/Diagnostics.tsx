@@ -1,8 +1,8 @@
 import { Lightbulb } from 'lucide-react';
-import type { DashboardResponse } from '@/entities/analytics/model/types';
+import type { DiagnosticsSummary } from '@/entities/analytics/model/types';
 import { formatMoney } from '@/shared/lib/format';
 
-export function Diagnostics({ diagnostics }: { diagnostics: DashboardResponse['diagnostics'] }) {
+export function Diagnostics({ diagnostics }: { diagnostics: DiagnosticsSummary }) {
   return (
     <section className="panel" aria-labelledby="diagnostics-title">
       <div className="flex flex-wrap items-center justify-between gap-4">

@@ -35,3 +35,33 @@ jobs:
           name: frontend-browser-traces
           path: frontend/test-results
           retention-days: 7
+
+  integration:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: frontend/.nvmrc
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+        working-directory: frontend
+      - run: npx playwright install --with-deps chromium
+        working-directory: frontend
+      - name: Start FastAPI and PostgreSQL in an isolated project
+        run: docker compose -p finsmart-frontend-e2e up --build --wait --wait-timeout 180 api
+      - run: npm run test:integration
+        working-directory: frontend
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: frontend-backend-browser-evidence
+          path: frontend/test-results
+          retention-days: 14
+      - name: Backend logs on failure
+        if: failure()
+        run: docker compose -p finsmart-frontend-e2e logs api db
+      - name: Remove only the isolated test project
+        if: always()
+        run: docker compose -p finsmart-frontend-e2e down --volumes

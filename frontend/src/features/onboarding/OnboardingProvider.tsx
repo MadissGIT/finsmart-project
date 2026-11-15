@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import type { PropsWithChildren } from 'react';
-import { DemoContext } from './model/context';
+import { OnboardingContext } from './model/context';
 import { emptySession, parseSession, SESSION_KEY } from './model/session';
-import type { DemoSession } from './model/session';
+import type { OnboardingSession } from './model/session';
 
-export function DemoSessionProvider({ children }: PropsWithChildren) {
-  const [session, setSession] = useState<DemoSession>(() => {
+export function OnboardingProvider({ children }: PropsWithChildren) {
+  const [registrationDraft, setRegistrationDraft] = useState<{ email: string; password: string } | null>(null);
+  const [session, setSession] = useState<OnboardingSession>(() => {
     try { return parseSession(window.sessionStorage.getItem(SESSION_KEY)); }
     catch { return { ...emptySession }; }
   });
@@ -16,12 +17,13 @@ export function DemoSessionProvider({ children }: PropsWithChildren) {
   }, [session]);
 
   return (
-    <DemoContext.Provider value={{
+    <OnboardingContext.Provider value={{
       session,
+      registrationDraft, setRegistrationDraft,
       updateSession: (patch) => setSession((current) => ({ ...current, ...patch })),
-      resetSession: () => setSession({ ...emptySession }),
+      resetSession: () => { setSession({ ...emptySession }); setRegistrationDraft(null); },
     }}>
       {children}
-    </DemoContext.Provider>
+    </OnboardingContext.Provider>
   );
 }

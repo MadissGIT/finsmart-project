@@ -1,35 +1,45 @@
 import { useState } from 'react';
-import { Wallet } from 'lucide-react';
+import { RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { useDemoSession } from '@/features/onboarding/model/context';
+import { PeriodFilter } from '@/features/dashboard/PeriodFilter';
+import { useDashboard } from '@/features/dashboard/model/useDashboard';
 import { Modal } from '@/shared/ui/Modal';
 import { ExpenseChart } from '@/widgets/dashboard/ExpenseChart';
-import { BudgetStrip, FinancialHealth, GoalPreview } from '@/widgets/dashboard/DashboardWidgets';
+import { SummaryCards } from '@/widgets/dashboard/SummaryCards';
+import { DashboardNotice } from '@/widgets/dashboard/DashboardNotice';
+import { BudgetStrip, BudgetScore, GoalPreview } from '@/widgets/dashboard/DashboardWidgets';
 
 export default function DashboardPage() {
-  const { session } = useDemoSession();
+  const dashboard = useDashboard();
+  const { status, data, selection, user } = dashboard;
   const [healthHelp, setHealthHelp] = useState(false);
-  const firstName = session.fullName.trim().split(/\s+/)[0];
+  const firstName = user?.full_name.trim().split(/\s+/)[0];
+  const hasOperations = !!data && (data.summary.total_income > 0 || data.summary.total_expense > 0);
+  const showPanels = status === 'ready' || status === 'anonymous';
+  const search = dashboard.search.toString();
 
-  return (
-    <div className="dashboard-page">
-      <div className="dashboard-heading"><h1>{firstName ? 'Привет, ' + firstName + '!' : 'Привет!'}</h1><p>Твой финансовый обзор</p></div>
-      <dl className="dashboard-summary">
-        <div className="summary-tile summary-tile-balance"><Wallet aria-hidden="true" /><div><dt>Баланс</dt><dd>—</dd><small>Нет данных</small></div></div>
-        <div className="summary-tile summary-tile-expenses"><Wallet aria-hidden="true" /><div><dt>Расходы</dt><dd>—</dd><small>Нет операций</small></div></div>
-      </dl>
+  return <div className="dashboard-page" aria-busy={status === 'loading'}>
+    <div className="dashboard-heading"><div><h1>{firstName ? 'Привет, ' + firstName + '!' : 'Привет!'}</h1><p>Твой финансовый обзор</p></div>
+      {status === 'ready' ? <button type="button" className="icon-button" onClick={dashboard.reload} aria-label="Обновить финансовый обзор"><RefreshCw size={18} /></button> : null}
+    </div>
+    <PeriodFilter selection={selection} onChange={dashboard.setSearch} />
+    <DashboardNotice status={status} error={dashboard.error} reload={dashboard.reload} />
+    <SummaryCards summary={data?.summary} loading={status === 'loading'} />
+    {showPanels ? <>
+      {status === 'ready' && !hasOperations ? <div className="dashboard-notice"><p>За этот период операций пока нет. Выберите другой период или добавьте выписку.</p><Link className="button-secondary" to="/setup">Загрузить выписку</Link></div> : null}
       <div className="dashboard-grid">
-        <ExpenseChart categories={[]} total={0} title="Структура расходов" compact />
+        <ExpenseChart key={selection.range.from + selection.range.to} categories={data?.by_categories ?? []} total={data?.summary.total_expense ?? 0} title="Структура расходов" compact emptyText={status === 'anonymous' ? 'Данные появятся после входа в аккаунт.' : undefined} />
         <div className="dashboard-right">
-          <FinancialHealth score={null} onHelp={() => setHealthHelp(true)} />
-          <BudgetStrip />
+          <BudgetScore score={hasOperations ? data?.budget_score ?? null : null} onHelp={() => setHealthHelp(true)} />
+          <BudgetStrip budget={hasOperations ? data?.budget_50_30_20 : undefined} to={'/analytics' + (search ? '?' + search : '')} />
+          {hasOperations && data?.deficit_financing ? <p className="budget-context-note">За период не учтены доходы. Базой бюджета служат расходы.</p> : null}
         </div>
       </div>
       <GoalPreview />
-      <Modal open={healthHelp} title="Финансовое здоровье" onClose={() => setHealthHelp(false)}>
-        <p>Пока нет данных для оценки. Здесь появятся рейтинг и рекомендации на основе Ваших операций.</p>
-        <Link to="/analytics" className="button-primary" onClick={() => setHealthHelp(false)}>Посмотреть аналитику</Link>
-      </Modal>
-    </div>
-  );
+    </> : null}
+    <Modal open={healthHelp} title="Соблюдение бюджета" onClose={() => setHealthHelp(false)}>
+      <p>{hasOperations ? 'Индекс рассчитывается по Вашим операциям за выбранный период. Он учитывает долю необязательных расходов относительно базы бюджета.' : 'Пока нет операций для расчёта. Здесь появится индекс соблюдения бюджета.'}</p>
+      <Link to={'/analytics' + (search ? '?' + search : '')} className="button-primary" onClick={() => setHealthHelp(false)}>Посмотреть аналитику</Link>
+    </Modal>
+  </div>;
 }

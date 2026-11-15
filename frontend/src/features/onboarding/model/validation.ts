@@ -12,13 +12,13 @@ export function validateRegistration(fields: RegistrationFields): RegistrationEr
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(fields.email.trim()) || fields.email.trim().length > 254) {
     errors.email = 'Укажите email в формате name@example.ru.';
   }
-  if (fields.password.length < 8 || !/\p{L}/u.test(fields.password) || !/\d/.test(fields.password)) {
-    errors.password = 'Минимум 8 символов, включая букву и цифру.';
+  if (fields.password.length < 10 || fields.password.length > 128 || !/\p{L}/u.test(fields.password) || !/\d/.test(fields.password)) {
+    errors.password = 'От 10 до 128 символов, включая букву и цифру.';
   }
   if (!fields.confirmPassword || fields.password !== fields.confirmPassword) {
     errors.confirmPassword = 'Пароли должны совпадать.';
   }
-  if (!fields.consent) errors.consent = 'Подтвердите согласие, чтобы продолжить демонстрацию.';
+  if (!fields.consent) errors.consent = 'Ознакомьтесь с информацией об обработке данных.';
   return errors;
 }
 

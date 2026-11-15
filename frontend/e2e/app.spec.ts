@@ -1,11 +1,12 @@
 import { expect, test } from '@playwright/test';
+import { mockAccount, signIn } from './helpers';
 
 const routes = [
   ['/', 'Привет!'],
   ['/welcome', 'ФинСмарт'],
   ['/register', 'Создать аккаунт'],
-  ['/register/profile', 'Немного о себе'],
-  ['/register/success', 'Регистрация успешна!'],
+  ['/register/profile', 'Создать аккаунт'],
+  ['/register/success', 'Создать аккаунт'],
   ['/setup', 'Давайте настроим Ваш профиль'],
   ['/transactions', 'Операции'],
   ['/analytics', 'Аналитика'],
@@ -40,7 +41,7 @@ test('навигация показывает активный раздел и �
   await expect(page.getByRole('heading', { level: 1, name: 'Скидки' })).toBeVisible();
 });
 
-test('на ширине 320px все шесть экранов помещаются без горизонтальной прокрутки', async ({ page }) => {
+test('гостевые экраны помещаются на ширине 320px без горизонтальной прокрутки', async ({ page }) => {
   await page.setViewportSize({ width: 320, height: 700 });
   for (const [path, title] of routes.slice(0, 6)) {
     await page.goto(path);
@@ -50,10 +51,11 @@ test('на ширине 320px все шесть экранов помещают�
   }
 });
 
-test('Dashboard и аналитика открываются без готовых финансовых данных', async ({ page }) => {
-  await page.goto('/');
+test('пустой аккаунт получает нулевые показатели с сервера', async ({ page }) => {
+  await mockAccount(page, { empty: true });
+  await signIn(page);
   await expect(page.getByRole('heading', { name: 'Структура расходов', exact: true })).toBeVisible();
-  await expect(page.locator('.dashboard-summary dd')).toHaveText(['—', '—']);
+  await expect(page.locator('.dashboard-summary dd')).toHaveText([/0\s*₽/, /0\s*₽/, /0\s*₽/]);
   await expect(page.getByText('За этот период расходов пока нет.', { exact: true })).toBeVisible();
   await expect(page.getByText('Недостаточно данных', { exact: true })).toBeVisible();
   await expect(page.getByText('Целей пока нет', { exact: true })).toBeVisible();
@@ -61,14 +63,14 @@ test('Dashboard и аналитика открываются без готовы
   await expect(page.getByRole('progressbar')).toHaveCount(0);
   await expect(page.getByRole('list', { name: 'Суммы расходов по категориям' })).toHaveCount(0);
   await page.reload();
-  await expect(page.locator('.dashboard-summary dd')).toHaveText(['—', '—']);
+  await expect(page.locator('.dashboard-summary dd')).toHaveText([/0\s*₽/, /0\s*₽/, /0\s*₽/]);
   await page.getByRole('button', { name: 'О рейтинге', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
-  await expect(page.getByRole('dialog')).toContainText('Пока нет данных для оценки');
+  await expect(page.getByRole('dialog')).toContainText('Пока нет операций для расчёта');
   await page.getByRole('button', { name: 'Закрыть', exact: true }).click();
   await page.getByRole('link', { name: 'Бюджет 50 / 30 / 20 — открыть аналитику', exact: true }).click();
   await expect(page.getByRole('heading', { level: 1, name: 'Аналитика' })).toBeVisible();
-  await expect(page.getByText('Пока нет операций для анализа.', { exact: true })).toBeVisible();
+  await expect(page.getByText('За этот период расходов пока нет.', { exact: true })).toBeVisible();
   await expect(page.locator('.recharts-pie')).toHaveCount(0);
   await expect(page.getByRole('progressbar')).toHaveCount(0);
 });

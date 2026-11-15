@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest';
 import { validateProfile, validateRegistration } from './validation';
 
-const valid = { email: 'maxim@example.test', password: 'Study1234', confirmPassword: 'Study1234', consent: true };
+const valid = { email: 'maxim@example.test', password: 'Study12345', confirmPassword: 'Study12345', consent: true };
 
-describe('демонстрационная регистрация', () => {
+describe('регистрация', () => {
   it('принимает заполненную форму', () => expect(validateRegistration(valid)).toEqual({}));
   it.each(['', 'maxim', 'maxim@', 'maxim @example.test'])('отклоняет некорректный email: %s', (email) => {
     expect(validateRegistration({ ...valid, email }).email).toBeDefined();
   });
-  it.each(['short1', 'abcdefgh', '12345678'])('проверяет минимальную сложность пароля: %s', (password) => {
+  it.each(['short1', 'abcdefgh', '12345678', 'Study1234', 'a1'.repeat(65)])('проверяет длину и сложность пароля: %s', (password) => {
     expect(validateRegistration({ ...valid, password, confirmPassword: password }).password).toBeDefined();
   });
   it('не пропускает несовпадение паролей и отсутствие согласия', () => {

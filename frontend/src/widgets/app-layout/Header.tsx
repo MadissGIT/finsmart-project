@@ -15,7 +15,7 @@ export function Header() {
         <button className="icon-button" type="button" aria-label="Уведомления" onClick={() => setNotifications(true)}><Bell size={20} aria-hidden="true" /></button>
         <Link className="icon-button" to="/auth" aria-label="Профиль"><CircleUserRound size={23} aria-hidden="true" /></Link>
       </div>
-      <Modal open={notifications} title="Уведомления" onClose={() => setNotifications(false)}><p>Новых уведомлений пока нет. Сейчас Вы просматриваете демонстрацию ФинСмарт.</p></Modal>
+      <Modal open={notifications} title="Уведомления" onClose={() => setNotifications(false)}><p>Новых уведомлений пока нет.</p></Modal>
     </header>
   );
 }

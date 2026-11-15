@@ -1,10 +1,13 @@
 import { api } from '@/shared/api/client';
 import type { DashboardResponse } from './model/types';
+import { parseDashboard } from './model/parse';
+import { ApiContractError } from '@/shared/lib/guards';
 
-// Будущий endpoint: в backend первой недели аналитика пока не реализована.
-export async function getDashboard(signal?: AbortSignal): Promise<DashboardResponse> {
-  const { data } = await api.get<DashboardResponse>('/analytics/dashboard', {
-    params: { period: 'current_month' }, signal,
+export async function getDashboard(period: { from: string; to: string }, signal?: AbortSignal): Promise<DashboardResponse> {
+  const { data } = await api.get<unknown>('/analytics/budget', {
+    params: { from_date: period.from, to_date: period.to }, signal,
   });
-  return data;
+  const dashboard = parseDashboard(data);
+  if (dashboard.period.from !== period.from || dashboard.period.to !== period.to) throw new ApiContractError();
+  return dashboard;
 }

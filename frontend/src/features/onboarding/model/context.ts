@@ -1,16 +1,18 @@
 import { createContext, useContext } from 'react';
-import type { DemoSession } from './session';
+import type { OnboardingSession } from './session';
 
-interface DemoContextValue {
-  session: DemoSession;
-  updateSession: (patch: Partial<DemoSession>) => void;
+interface OnboardingContextValue {
+  session: OnboardingSession;
+  updateSession: (patch: Partial<OnboardingSession>) => void;
   resetSession: () => void;
+  registrationDraft: { email: string; password: string } | null;
+  setRegistrationDraft: (draft: { email: string; password: string } | null) => void;
 }
 
-export const DemoContext = createContext<DemoContextValue | null>(null);
+export const OnboardingContext = createContext<OnboardingContextValue | null>(null);
 
-export function useDemoSession() {
-  const context = useContext(DemoContext);
-  if (!context) throw new Error('DemoSessionProvider is missing');
+export function useOnboarding() {
+  const context = useContext(OnboardingContext);
+  if (!context) throw new Error('OnboardingProvider is missing');
   return context;
 }

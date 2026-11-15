@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { emptySession, parseSession } from './session';
 
-describe('сохранение демонстрации', () => {
+describe('сохранение настроек анкеты', () => {
   it.each([null, '{broken', 'null', '[]', '{"stage":"unknown"}'])('восстанавливает безопасное пустое состояние: %s', (value) => {
     expect(parseSession(value)).toEqual(emptySession);
   });

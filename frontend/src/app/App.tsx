@@ -1,6 +1,7 @@
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
-import { DemoSessionProvider } from '@/features/onboarding/DemoSessionProvider';
+import { OnboardingProvider } from '@/features/onboarding/OnboardingProvider';
+import { AuthProvider } from '@/features/auth/AuthProvider';
 import { AppLayout } from '@/widgets/app-layout/AppLayout';
 import { OnboardingLayout } from '@/widgets/onboarding/OnboardingLayout';
 import { WelcomePage } from '@/pages/welcome/WelcomePage';
@@ -21,7 +22,7 @@ const AnalyticsPage = lazy(() => import('@/pages/analytics/AnalyticsPage'));
 
 export function App() {
   return (
-    <DemoSessionProvider>
+    <AuthProvider><OnboardingProvider>
       <BrowserRouter>
         <RouteEffects />
         <Suspense fallback={<p className="p-8" role="status">Загружаем страницу…</p>}>
@@ -47,6 +48,6 @@ export function App() {
           </Routes>
         </Suspense>
       </BrowserRouter>
-    </DemoSessionProvider>
+    </OnboardingProvider></AuthProvider>
   );
 }
