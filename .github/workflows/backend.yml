@@ -38,9 +38,9 @@ jobs:
           enable-cache: true
           working-directory: backend
       - run: uv sync --locked
-      - run: uv run ruff check src tests
-      - run: uv run ruff format --check src tests
-      - run: uv run ty check src
+      - run: uv run ruff check src tests scripts
+      - run: uv run ruff format --check src tests scripts
+      - run: uv run ty check src scripts
       - run: uv run pytest
       - run: uv run alembic upgrade head
       - run: uv run alembic check
@@ -62,6 +62,7 @@ jobs:
             --header 'Access-Control-Request-Method: POST' \
             --header 'Access-Control-Request-Headers: authorization,content-type'
       - run: just check
+      - run: docker compose run --rm test python -m scripts.smoke_week2
       - run: just migration-check
       - name: Verify restart with existing data
         run: docker compose restart api && docker compose up --wait --wait-timeout 60

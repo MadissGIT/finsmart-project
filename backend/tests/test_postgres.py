@@ -49,7 +49,7 @@ def test_migration_matches_models_and_seed(
             assert categories[4].name == "Кафе и рестораны"
             assert categories[-1].budget_group is BudgetGroup.OTHER
             rules = list((await session.scalars(select(CategoryRule))).all())
-            assert len(rules) == 38
+            assert len(rules) == 47
             for rule in rules:
                 if rule.rule_type is RuleType.KEYWORD:
                     re.compile(rule.pattern)

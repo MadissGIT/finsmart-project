@@ -12,6 +12,7 @@ from sqlalchemy import (
     MetaData,
     Numeric,
     String,
+    Text,
     UniqueConstraint,
     func,
 )
@@ -29,6 +30,13 @@ class BudgetGroup(StrEnum):
 class OperationType(StrEnum):
     DEBIT = "DEBIT"
     CREDIT = "CREDIT"
+
+
+class BankSource(StrEnum):
+    TBANK = "TBANK"
+    SBER = "SBER"
+    VTB = "VTB"
+    MANUAL = "MANUAL"
 
 
 class RuleType(StrEnum):
@@ -104,6 +112,7 @@ class Transaction(Base):
         CheckConstraint("amount BETWEEN 0.01 AND 999999999999.99", name="positive_amount"),
         CheckConstraint("confidence BETWEEN 0 AND 1", name="confidence_range"),
         CheckConstraint("mcc_code IS NULL OR mcc_code ~ '^[0-9]{4}$'", name="valid_mcc"),
+        CheckConstraint("currency = 'RUB'", name="rub_currency"),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
@@ -121,6 +130,14 @@ class Transaction(Base):
     import_hash: Mapped[str | None] = mapped_column(String(64))
     confidence: Mapped[Decimal] = mapped_column(Numeric(3, 2))
     requires_review: Mapped[bool]
+    bank_source: Mapped[BankSource] = mapped_column(
+        Enum(BankSource, native_enum=False, create_constraint=True, name="bank_source"),
+        default=BankSource.MANUAL,
+        server_default="MANUAL",
+    )
+    raw_description: Mapped[str] = mapped_column(Text, default="", server_default="")
+    bank_category_raw: Mapped[str | None] = mapped_column(String(255))
+    currency: Mapped[str] = mapped_column(String(3), default="RUB", server_default="RUB")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -167,3 +184,12 @@ class Discount(Base):
     promocode: Mapped[str | None] = mapped_column(String(100))
     affiliate_url: Mapped[str] = mapped_column(String(2000))
     valid_until: Mapped[date]
+
+
+class RefreshSession(Base):
+    __tablename__ = "refresh_sessions"
+
+    id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
+    user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
+    token_hash: Mapped[str] = mapped_column(String(64), unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
