@@ -114,6 +114,9 @@ class FinancialHealthService:
             for alert in alerts:
                 alert.discounts = [
                     DiscountOffer(
+                        is_demo=offer.is_demo,
+                        benefit=offer.benefit,
+                        conditions=offer.conditions,
                         id=offer.id,
                         partner_name=offer.partner_name,
                         title=offer.title,

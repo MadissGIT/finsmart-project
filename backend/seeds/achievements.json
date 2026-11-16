@@ -1,0 +1,82 @@
+[
+  {
+    "code": "BADGE_FIRST_IMPORT",
+    "title": "Первый шаг",
+    "level": "Бронза",
+    "icon": "📄",
+    "condition": "Загрузка и подтверждение первой банковской выписки",
+    "points": 10
+  },
+  {
+    "code": "BADGE_QUICK_ENTRY",
+    "title": "Ловец чеков",
+    "level": "Бронза",
+    "icon": "⚡",
+    "condition": "Добавление 5 транзакций через ручной ввод за 7 дней",
+    "points": 5
+  },
+  {
+    "code": "BADGE_PIGGY_CREATED",
+    "title": "Мечтатель",
+    "level": "Бронза",
+    "icon": "🎯",
+    "condition": "Создание первой финансовой цели («Копилки»)",
+    "points": 5
+  },
+  {
+    "code": "BADGE_FIRST_DEPOSIT",
+    "title": "Первый кирпич",
+    "level": "Бронза",
+    "icon": "🧱",
+    "condition": "Первое пополнение активной копилки на любую сумму",
+    "points": 10
+  },
+  {
+    "code": "BADGE_BUDGET_OK",
+    "title": "Хозяин бюджета",
+    "level": "Серебро",
+    "icon": "⚖️",
+    "condition": "Соблюдение модели 50/30/20 по итогам месяца ( )",
+    "points": 20
+  },
+  {
+    "code": "BADGE_DISCOUNT_HERO",
+    "title": "Умная выгода",
+    "level": "Серебро",
+    "icon": "🏷️",
+    "condition": "Применение 3 промокодов из раздела скидок за месяц",
+    "points": 15
+  },
+  {
+    "code": "BADGE_SUB_CLEANER",
+    "title": "Охотник за подписками",
+    "level": "Серебро",
+    "icon": "✂️",
+    "condition": "Отключение или отметка неактивной подписки в «Диагнозе»",
+    "points": 15
+  },
+  {
+    "code": "BADGE_CHALLENGE_WIN",
+    "title": "Марафонец",
+    "level": "Золото",
+    "icon": "🏆",
+    "condition": "Успешное прохождение любого 7-дневного микро-челленджа",
+    "points": 25
+  },
+  {
+    "code": "BADGE_GOAL_REACHED",
+    "title": "Цель взята!",
+    "level": "Золото",
+    "icon": "🚀",
+    "condition": "Достижение 100% целевой суммы в любой активной копилке",
+    "points": 30
+  },
+  {
+    "code": "BADGE_HEALTH_MASTER",
+    "title": "Финансовый дзен",
+    "level": "Платина",
+    "icon": "💎",
+    "condition": "Удержание «Рейтинга здоровья»   баллов 2 месяца подряд",
+    "points": 35
+  }
+]

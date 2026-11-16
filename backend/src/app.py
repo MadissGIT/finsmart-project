@@ -11,6 +11,7 @@ from src.db.database import get_async_engine
 from src.modules.goals.service import GoalNotFoundError, InvalidGoalError
 from src.routes.analytics.api import router as analytics_router
 from src.routes.auth.api import router as auth_router
+from src.routes.catalog.api import router as catalog_router
 from src.routes.categories.api import router as categories_router
 from src.routes.goals.api import router as goals_router
 from src.routes.health import router as health_router
@@ -65,3 +66,4 @@ app.include_router(auth_router, prefix="/api/v1")
 app.include_router(transactions_router, prefix="/api/v1")
 app.include_router(analytics_router, prefix="/api/v1")
 app.include_router(goals_router, prefix="/api/v1")
+app.include_router(catalog_router, prefix="/api/v1")

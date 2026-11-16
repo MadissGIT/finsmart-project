@@ -188,6 +188,11 @@ class Discount(Base):
     promocode: Mapped[str | None] = mapped_column(String(100))
     affiliate_url: Mapped[str] = mapped_column(String(2000))
     valid_until: Mapped[date]
+    code: Mapped[str | None] = mapped_column(String(10), unique=True)
+    activation: Mapped[str] = mapped_column(Text, server_default="")
+    benefit: Mapped[str] = mapped_column(Text, server_default="")
+    conditions: Mapped[str] = mapped_column(Text, server_default="")
+    is_demo: Mapped[bool] = mapped_column(server_default="true")
 
 
 class RefreshSession(Base):
@@ -197,3 +202,26 @@ class RefreshSession(Base):
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     token_hash: Mapped[str] = mapped_column(String(64), unique=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class Achievement(Base):
+    __tablename__ = "achievements"
+
+    code: Mapped[str] = mapped_column(String(40), primary_key=True)
+    title: Mapped[str] = mapped_column(String(100))
+    level: Mapped[str] = mapped_column(String(20))
+    icon: Mapped[str] = mapped_column(String(20))
+    points: Mapped[int]
+    condition: Mapped[str] = mapped_column(Text)
+
+
+class UserAchievement(Base):
+    __tablename__ = "user_achievements"
+
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    code: Mapped[str] = mapped_column(
+        ForeignKey("achievements.code", ondelete="CASCADE"), primary_key=True
+    )
+    earned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

@@ -7,6 +7,7 @@ from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.models import Category, Transaction, UserRule
+from src.modules.achievements.repositories import AchievementRepository
 
 
 class TransactionRepository:
@@ -42,6 +43,10 @@ class TransactionRepository:
             .returning(Transaction),
         )
         imported = list(result.all())
+        if imported:
+            await AchievementRepository(self._session).award(
+                imported[0].user_id, "BADGE_FIRST_IMPORT"
+            )
         await self._session.commit()
         return imported
 
