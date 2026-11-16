@@ -5,15 +5,16 @@ import time
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import httpx
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncSession
 
 from src.app import app
 from src.db.database import get_async_session
-from src.db.models import RefreshSession, Transaction, User
+from src.db.models import Discount, RefreshSession, Transaction, User
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -573,5 +574,174 @@ def test_editing_import_preserves_deduplication(api_postgres) -> None:
         assert repeated["duplicates_skipped"] == 5
         assert repeated["imported_count"] == 0
         assert (await client.get(url)).json()["amount"] == 25
+
+    runner.run(scenario())
+
+
+def test_week3_goals_deposits_and_ownership(api_postgres) -> None:
+    runner, client, _ = api_postgres
+
+    async def scenario() -> None:
+        owner = await register(client, "goal-owner@example.com")
+        outsider = await register(client, "goal-outsider@example.com")
+        owner_headers = {"Authorization": f"Bearer {owner['access_token']}"}
+        outsider_headers = {"Authorization": f"Bearer {outsider['access_token']}"}
+        client.headers.update(owner_headers)
+        base = "/api/v1/goals"
+        today = datetime.now(UTC).date()
+        payload = {
+            "title": "Резерв",
+            "target_amount": 10000,
+            "deadline": (today + timedelta(days=60)).isoformat(),
+            "icon": "shield",
+        }
+        assert (
+            await client.post(base, json={**payload, "deadline": "2000-01-01"})
+        ).status_code == 422
+        response = await client.post(base, json=payload)
+        assert response.status_code == 201, response.text
+        created = response.json()
+        goal_url = f"{base}/{created['id']}"
+        assert created["icon"] == "shield"
+        assert created["exceeds_half_income"] is True
+        assert 4900 < created["monthly_payment_recommended"] < 5200
+        for amount in [0, -1, 10001, "1.001"]:
+            result = await client.post(
+                f"{goal_url}/deposit", json={"amount": amount, "source": "free_money"}
+            )
+            assert result.status_code == 422
+        assert (await client.get(goal_url, headers=outsider_headers)).status_code == 404
+        assert (await client.delete(goal_url, headers=outsider_headers)).status_code == 404
+        assert (await client.get(base, headers=outsider_headers)).json() == []
+        result = await client.post(
+            f"{goal_url}/deposit", json={"amount": 500, "source": "discount"}
+        )
+        assert result.status_code == 200, result.text
+        deposit = result.json()
+        assert deposit["current_amount"] == 500
+        assert deposit["progress_percent"] == 5
+        assert deposit["acceleration_days"] == 3
+        assert deposit["monthly_payment_recommended"] < created["monthly_payment_recommended"]
+        assert (await client.patch(goal_url, json={"target_amount": 499})).status_code == 422
+        assert (await client.patch(goal_url, json={"title": "Резерв на отпуск"})).status_code == 200
+        assert (await client.get(base)).json()[0]["current_amount"] == 500
+        assert (await client.delete(goal_url)).status_code == 204
+        assert (await client.get(base)).json() == []
+
+    runner.run(scenario())
+
+
+def test_week3_dashboard_integrates_activity_goals_and_diagnosis(api_postgres) -> None:
+    runner, client, connection = api_postgres
+
+    async def scenario() -> None:
+        async with AsyncSession(bind=connection) as session:
+            now = await session.scalar(select(func.now()))
+        assert now is not None
+        token = await register(client, "health@example.com")
+        client.headers["Authorization"] = f"Bearer {token['access_token']}"
+        today = now.astimezone(ZoneInfo("Europe/Moscow")).date()
+        url = "/api/v1/analytics/dashboard"
+        empty = (await client.get(url)).json()["diagnostics"]
+        assert empty["indices"] == {"balance": 0, "budget": 0, "goals": 50, "regularity": 0}
+        assert "FD-08" in empty["unavailable"]
+        for category, operation, amount in [
+            (10, "CREDIT", 10000),
+            (1, "DEBIT", 5000),
+            (5, "DEBIT", 3000),
+        ]:
+            response = await client.post(
+                "/api/v1/transactions",
+                json={
+                    **MANUAL_TRANSACTION,
+                    "category_id": category,
+                    "operation_type": operation,
+                    "amount": amount,
+                    "transaction_date": now.isoformat(),
+                },
+            )
+            assert response.status_code == 201, response.text
+        created = await client.post(
+            "/api/v1/goals",
+            json={
+                "title": "Резерв",
+                "target_amount": 1000,
+                "deadline": (today + timedelta(days=30)).isoformat(),
+            },
+        )
+        goal_id = created.json()["id"]
+        assert (
+            await client.post(
+                f"/api/v1/goals/{goal_id}/deposit", json={"amount": 100, "source": "free_money"}
+            )
+        ).status_code == 200
+        response = await client.get(url)
+        assert response.status_code == 200, response.text
+        result = response.json()["diagnostics"]
+        assert result["indices"] == {"balance": 100, "budget": 100, "goals": 100, "regularity": 35}
+        assert result["health_score"] == 90
+        assert "FD-10" in {alert["type"] for alert in result["alerts"]}
+        assert (await client.get(url, params={"from_date": today.isoformat()})).status_code == 422
+        evidence = {
+            "idle_cash": {"since": (today - timedelta(days=60)).isoformat(), "amount": 1000}
+        }
+        verified = await client.post(url, json=evidence)
+        assert verified.status_code == 200
+        assert "FD-08" not in verified.json()["diagnostics"]["unavailable"]
+        assert (await client.post(url, json={"idle_cash": {"amount": 1000}})).status_code == 422
+
+    runner.run(scenario())
+
+
+def test_week3_diagnosis_matches_only_relevant_unexpired_discounts(api_postgres) -> None:
+    runner, client, connection = api_postgres
+
+    async def scenario() -> None:
+        token = await register(client, "diagnosis-discounts@example.com")
+        client.headers["Authorization"] = f"Bearer {token['access_token']}"
+        for category, direction, amount in [(10, "CREDIT", 10000), (1, "DEBIT", 4100)]:
+            response = await client.post(
+                "/api/v1/transactions",
+                json={
+                    **MANUAL_TRANSACTION,
+                    "category_id": category,
+                    "operation_type": direction,
+                    "amount": amount,
+                },
+            )
+            assert response.status_code == 201, response.text
+        as_of = MANUAL_TRANSACTION["transaction_date"][:10]
+        deadline = datetime.fromisoformat(as_of).date()
+        async with AsyncSession(
+            bind=connection, join_transaction_mode="create_savepoint"
+        ) as session:
+            for category, name, expiry in [
+                (1, "Магазин", deadline),
+                (1, "Старая акция", deadline - timedelta(days=1)),
+                (5, "Кофейня", deadline),
+            ]:
+                session.add(
+                    Discount(
+                        category_id=category,
+                        partner_name=name,
+                        title="Скидка 10%",
+                        discount_percent=10,
+                        affiliate_url="https://example.com",
+                        valid_until=expiry,
+                    )
+                )
+            await session.commit()
+        response = await client.post(
+            "/api/v1/analytics/dashboard",
+            json={
+                "from_date": as_of,
+                "to_date": as_of,
+                "idle_cash": {"since": "2026-08-01", "amount": 50000},
+            },
+        )
+        assert response.status_code == 200, response.text
+        alerts = {alert["type"]: alert for alert in response.json()["diagnostics"]["alerts"]}
+        assert "FD-08" in alerts
+        assert [offer["partner_name"] for offer in alerts["FD-06"]["discounts"]] == ["Магазин"]
 
     runner.run(scenario())

@@ -109,6 +109,7 @@ class Transaction(Base):
     __table_args__ = (
         UniqueConstraint("user_id", "import_hash"),
         Index("ix_transactions_user_date", "user_id", "transaction_date"),
+        Index("ix_transactions_user_created_at", "user_id", "created_at"),
         CheckConstraint("amount BETWEEN 0.01 AND 999999999999.99", name="positive_amount"),
         CheckConstraint("confidence BETWEEN 0 AND 1", name="confidence_range"),
         CheckConstraint("mcc_code IS NULL OR mcc_code ~ '^[0-9]{4}$'", name="valid_mcc"),
@@ -153,6 +154,7 @@ class Goal(Base):
     title: Mapped[str] = mapped_column(String(200))
     target_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2))
     deadline: Mapped[date]
+    icon: Mapped[str] = mapped_column(String(32), server_default="target")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -160,11 +162,13 @@ class GoalContribution(Base):
     __tablename__ = "goal_contributions"
     __table_args__ = (
         Index("ix_goal_contributions_goal_id", "goal_id"),
+        CheckConstraint("source IN ('free_money', 'discount')", name="valid_source"),
         CheckConstraint("amount BETWEEN 0.01 AND 999999999999.99", name="positive_amount"),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     goal_id: Mapped[UUID] = mapped_column(ForeignKey("goals.id", ondelete="CASCADE"))
+    source: Mapped[str] = mapped_column(String(10), server_default="free_money")
     amount: Mapped[Decimal] = mapped_column(Numeric(14, 2))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
