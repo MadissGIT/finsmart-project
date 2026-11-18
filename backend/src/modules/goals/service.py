@@ -8,6 +8,7 @@ from src.db.models import Goal, GoalContribution
 from src.modules.analytics.repositories import AnalyticsRepository
 from src.modules.goals.repositories import GoalRepository
 from src.modules.goals.schemas import (
+    ContributionResponse,
     DepositRequest,
     DepositResponse,
     DepositSource,
@@ -162,3 +163,10 @@ class GoalService:
     async def delete(self, user_id: UUID, goal_id: UUID) -> None:
         goal = await self._get(user_id, goal_id, lock=True)
         await self._goal_repository.delete(goal)
+
+    async def contributions(
+        self, user_id: UUID, goal_id: UUID, limit: int, offset: int
+    ) -> list[ContributionResponse]:
+        goal = await self._get(user_id, goal_id, lock=False)
+        rows = await self._goal_repository.contributions(goal.id, limit, offset)
+        return [ContributionResponse.model_validate(row) for row in rows]

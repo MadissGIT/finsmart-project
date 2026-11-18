@@ -92,3 +92,23 @@ class AnalyticsRepository:
             .order_by(Discount.discount_percent.desc(), Discount.id)
         )
         return list(result.all())
+
+    async def daily_expenses(
+        self,
+        user_id: UUID,
+        start: datetime,
+        end: datetime,
+        timezone: str,
+    ) -> list[tuple[date, Decimal]]:
+        day = cast(func.timezone(timezone, Transaction.transaction_date), Date)
+        result = await self._session.execute(
+            select(day, func.sum(Transaction.amount))
+            .where(
+                Transaction.user_id == user_id,
+                Transaction.operation_type == OperationType.DEBIT,
+                Transaction.transaction_date >= start,
+                Transaction.transaction_date < end,
+            )
+            .group_by(day)
+        )
+        return list(result.tuples().all())

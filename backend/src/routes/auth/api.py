@@ -6,6 +6,7 @@ from src.db.models import User
 from src.modules.auth.schemas import (
     InvalidCredentialsError,
     LoginRequest,
+    ProfileUpdate,
     RefreshRequest,
     RegisterRequest,
     TokenResponse,
@@ -58,3 +59,12 @@ async def refresh(
 @router.get("/users/me", response_model=UserResponse)
 async def profile(user: Annotated[User, Depends(get_current_user)]) -> UserResponse:
     return UserResponse.model_validate(user)
+
+
+@router.patch("/users/me")
+async def update_profile(
+    payload: ProfileUpdate,
+    user: Annotated[User, Depends(get_current_user)],
+    auth_service: Annotated[AuthService, Depends(get_auth_service)],
+) -> UserResponse:
+    return UserResponse.model_validate(await auth_service.update_profile(user, payload.full_name))

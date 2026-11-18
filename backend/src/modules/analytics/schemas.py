@@ -108,3 +108,8 @@ class DashboardRequest(BaseModel):
     from_date: date | None = None
     to_date: date | None = None
     idle_cash: IdleCash
+
+
+class ExpensePoint(BaseModel):
+    date: date
+    amount: JsonDecimal

@@ -2,7 +2,7 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import Date, cast, func, select
+from sqlalchemy import Date, and_, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.models import Goal, GoalContribution
@@ -58,7 +58,13 @@ class GoalRepository:
         )
         result = await self._session.execute(
             select(Goal, before, during, on_time)
-            .outerjoin(GoalContribution)
+            .outerjoin(
+                GoalContribution,
+                and_(
+                    GoalContribution.goal_id == Goal.id,
+                    GoalContribution.created_at < end,
+                ),
+            )
             .where(Goal.user_id == user_id, Goal.created_at < end)
             .group_by(Goal.id)
         )
@@ -84,3 +90,16 @@ class GoalRepository:
     async def delete(self, goal: Goal) -> None:
         await self._session.delete(goal)
         await self._session.commit()
+
+    async def contributions(self, goal_id: UUID, limit: int, offset: int) -> list[GoalContribution]:
+        return list(
+            (
+                await self._session.scalars(
+                    select(GoalContribution)
+                    .where(GoalContribution.goal_id == goal_id)
+                    .order_by(GoalContribution.created_at.desc(), GoalContribution.id.desc())
+                    .limit(limit)
+                    .offset(offset)
+                )
+            ).all()
+        )

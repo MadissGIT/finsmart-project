@@ -72,3 +72,37 @@ jobs:
       - name: Stop containers
         if: always()
         run: just down
+
+  production-compose:
+    runs-on: ubuntu-latest
+    env:
+      FINSMART_POSTGRES_PASSWORD: ci-only-prod-compose-password
+      FINSMART_DATABASE_URL: postgresql+asyncpg://finsmart:ci-only-prod-compose-password@db:5432/finsmart
+      FINSMART_JWT_SECRET: ci-only-key-not-used-in-any-deployment-0123456789
+      FINSMART_CORS_ORIGINS: '["https://finsmart.example"]'
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+      - run: docker compose -f compose.production.yaml up --build --wait --wait-timeout 180
+      - name: Exercise release API
+        working-directory: backend
+        env:
+          FINSMART_SMOKE_API: http://127.0.0.1:8000/api/v1/
+        run: |
+          uv sync --locked
+          uv run python -m scripts.smoke_week2
+      - name: Verify persistent JWT across restart
+        run: |
+          token=$(curl -fsS http://127.0.0.1:8000/api/v1/auth/register \
+            -H 'Content-Type: application/json' \
+            -d '{"email":"restart@example.com","password":"CI-only-restart-password","full_name":"CI restart"}' \
+            | python3 -c 'import json,sys; print(json.load(sys.stdin)["access_token"])')
+          test -n "$token"
+          docker compose -f compose.production.yaml restart api
+          docker compose -f compose.production.yaml up --wait --wait-timeout 60
+          curl -fsS \
+            -H "Authorization: Bearer $token" http://127.0.0.1:8000/api/v1/users/me >/dev/null
+      - if: failure()
+        run: docker compose -f compose.production.yaml ps --all
+      - if: always()
+        run: docker compose -f compose.production.yaml down

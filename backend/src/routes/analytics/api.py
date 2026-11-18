@@ -1,6 +1,6 @@
 import calendar
 from datetime import date, datetime, timedelta
-from typing import Annotated
+from typing import Annotated, Literal
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -11,7 +11,13 @@ from src.db.database import get_async_session
 from src.db.models import User
 from src.modules.analytics.health import FinancialHealthService
 from src.modules.analytics.repositories import AnalyticsRepository
-from src.modules.analytics.schemas import BudgetDashboard, Dashboard, DashboardRequest, IdleCash
+from src.modules.analytics.schemas import (
+    BudgetDashboard,
+    Dashboard,
+    DashboardRequest,
+    ExpensePoint,
+    IdleCash,
+)
 from src.modules.analytics.service import AnalyticsService
 from src.modules.goals.repositories import GoalRepository
 from src.routes.auth.dependencies import get_current_user
@@ -105,3 +111,17 @@ async def dashboard_with_account_data(
         to_date=payload.to_date,
         idle_cash=payload.idle_cash,
     )
+
+
+@router.get("/expenses/trend")
+async def expense_trend(
+    user: Annotated[User, Depends(get_current_user)],
+    service: Annotated[AnalyticsService, Depends(get_analytics_service)],
+    from_date: date,
+    to_date: date,
+    group_by: Literal["day", "week"] = "day",
+) -> list[ExpensePoint]:
+    try:
+        return await service.expense_trend(user.id, from_date, to_date, weekly=group_by == "week")
+    except ValueError as err:
+        raise HTTPException(422, str(err)) from err

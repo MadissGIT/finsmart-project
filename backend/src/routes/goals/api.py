@@ -3,7 +3,7 @@ from typing import Annotated
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from fastapi import APIRouter, Depends, Response
+from fastapi import APIRouter, Depends, Query, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.core.settings import get_project_settings
@@ -12,6 +12,7 @@ from src.db.models import User
 from src.modules.analytics.repositories import AnalyticsRepository
 from src.modules.goals.repositories import GoalRepository
 from src.modules.goals.schemas import (
+    ContributionResponse,
     DepositRequest,
     DepositResponse,
     GoalCreate,
@@ -76,3 +77,14 @@ async def deposit(
 async def delete_goal(goal_id: UUID, user: CurrentUser, service: Goals) -> Response:
     await service.delete(user_id=user.id, goal_id=goal_id)
     return Response(status_code=204)
+
+
+@router.get("/{goal_id}/contributions")
+async def contributions(
+    goal_id: UUID,
+    user: CurrentUser,
+    service: Goals,
+    limit: Annotated[int, Query(ge=1, le=100)] = 50,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> list[ContributionResponse]:
+    return await service.contributions(user.id, goal_id, limit, offset)

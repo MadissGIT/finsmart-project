@@ -1,5 +1,7 @@
 """Verify the running Compose API, authentication, import, and budgeting."""
 
+import os
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 from uuid import uuid4
 
@@ -7,12 +9,15 @@ import httpx
 
 
 def main() -> None:
-    with httpx.Client(base_url="http://api:8000/api/v1/", timeout=15) as client:
+    with httpx.Client(
+        base_url=os.getenv("FINSMART_SMOKE_API", "http://api:8000/api/v1/"), timeout=15
+    ) as client:
         articles = client.get("articles")
         articles.raise_for_status()
         assert len(articles.json()) == 10
         offers = client.get("discounts")
         offers.raise_for_status()
+        assert len(offers.json()) >= 5
         assert all(item["is_demo"] for item in offers.json())
         registration = client.post(
             "auth/register",
@@ -42,6 +47,37 @@ def main() -> None:
         budget.raise_for_status()
         assert budget.json()["summary"]["total_income"] == 100000
         assert budget.json()["summary"]["total_expense"] == 2349.5
+        dashboard = client.get(
+            "analytics/dashboard", params={"from_date": "2026-10-01", "to_date": "2026-10-31"}
+        )
+        dashboard.raise_for_status()
+        alerts = dashboard.json()["diagnostics"]["alerts"]
+        assert 0 <= dashboard.json()["diagnostics"]["health_score"] <= 100
+        assert isinstance(alerts, list)
+        deficit = client.get(
+            "analytics/dashboard", params={"from_date": "2026-10-02", "to_date": "2026-10-02"}
+        )
+        deficit.raise_for_status()
+        assert "FD-05" in {alert["type"] for alert in deficit.json()["diagnostics"]["alerts"]}
+        goal = client.post(
+            "goals",
+            json={
+                "title": "Smoke reserve",
+                "target_amount": 500,
+                "deadline": (datetime.now(UTC).date() + timedelta(days=90)).isoformat(),
+            },
+        )
+        goal.raise_for_status()
+        goal_id = goal.json()["id"]
+        assert goal.json()["monthly_payment_recommended"] > 0
+        contribution = client.post(
+            f"goals/{goal_id}/deposit", json={"amount": 500, "source": "free_money"}
+        )
+        contribution.raise_for_status()
+        assert contribution.json()["progress_percent"] == 100
+        history = client.get(f"goals/{goal_id}/contributions")
+        history.raise_for_status()
+        assert history.json()[0]["amount"] == 500
         rotated = client.post("auth/refresh", json={"refresh_token": credentials["refresh_token"]})
         rotated.raise_for_status()
         assert (

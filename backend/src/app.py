@@ -1,3 +1,4 @@
+import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -5,6 +6,8 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import TimeoutError as DatabaseTimeout
 
 from src.core.settings import get_auth_settings, get_project_settings
 from src.db.database import get_async_engine
@@ -52,6 +55,22 @@ async def goal_not_found(_request: Request, exception: GoalNotFoundError) -> JSO
 @app.exception_handler(InvalidGoalError)
 async def invalid_goal(_request: Request, exception: InvalidGoalError) -> JSONResponse:
     return JSONResponse(status_code=422, content={"detail": str(exception)})
+
+
+logger = logging.getLogger("uvicorn.error")
+
+
+@app.exception_handler(OperationalError)
+@app.exception_handler(DatabaseTimeout)
+async def database_unavailable(request: Request, exception: Exception) -> JSONResponse:
+    route = request.scope.get("route")
+    logger.warning(
+        "Database unavailable: method=%s route=%s error=%s",
+        request.method,
+        getattr(route, "path", "<unknown>"),
+        type(exception).__name__,
+    )
+    return JSONResponse(status_code=503, content={"detail": "База данных временно недоступна"})
 
 
 app.add_middleware(

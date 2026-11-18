@@ -109,6 +109,7 @@ class Transaction(Base):
     __table_args__ = (
         UniqueConstraint("user_id", "import_hash"),
         Index("ix_transactions_user_date", "user_id", "transaction_date"),
+        Index("ix_transactions_user_category_date", "user_id", "category_id", "transaction_date"),
         Index("ix_transactions_user_created_at", "user_id", "created_at"),
         CheckConstraint("amount BETWEEN 0.01 AND 999999999999.99", name="positive_amount"),
         CheckConstraint("confidence BETWEEN 0 AND 1", name="confidence_range"),
@@ -161,7 +162,7 @@ class Goal(Base):
 class GoalContribution(Base):
     __tablename__ = "goal_contributions"
     __table_args__ = (
-        Index("ix_goal_contributions_goal_id", "goal_id"),
+        Index("ix_goal_contributions_goal_date", "goal_id", "created_at", "id"),
         CheckConstraint("source IN ('free_money', 'discount')", name="valid_source"),
         CheckConstraint("amount BETWEEN 0.01 AND 999999999999.99", name="positive_amount"),
     )

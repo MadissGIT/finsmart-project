@@ -1,8 +1,9 @@
 import json
-from datetime import date
+from datetime import date, datetime, time, timedelta
 from functools import lru_cache
 from pathlib import Path
 from uuid import UUID
+from zoneinfo import ZoneInfo
 
 from pydantic import BaseModel
 
@@ -43,6 +44,11 @@ class DiscountResponse(BaseModel):
 def get_articles() -> tuple[Article, ...]:
     path = Path(__file__).resolve().parents[3] / "seeds" / "articles.json"
     return tuple(Article.model_validate(row) for row in json.loads(path.read_text()))
+
+
+class RecommendedDiscounts(BaseModel):
+    recommendation_basis: list[str]
+    items: list[DiscountResponse]
 
 
 class CatalogService:
@@ -88,3 +94,18 @@ class CatalogService:
             "items": items,
             "reward_points": sum(row["points"] for row in items if row["unlocked"]),
         }
+
+    async def recommended_discounts(
+        self, user_id: UUID, today: date, financial_timezone: ZoneInfo
+    ) -> RecommendedDiscounts:
+        categories = await self._catalog_repository.top_expense_categories(
+            user_id=user_id,
+            start=datetime.combine(today - timedelta(days=29), time.min, financial_timezone),
+            end=datetime.combine(today + timedelta(days=1), time.min, financial_timezone),
+        )
+        rank = {category_id: position for position, (category_id, _) in enumerate(categories)}
+        offers = [offer for offer in await self.discounts(None, today) if offer.category_id in rank]
+        offers.sort(key=lambda offer: rank[offer.category_id])
+        return RecommendedDiscounts(
+            recommendation_basis=[name for _, name in categories], items=offers
+        )
