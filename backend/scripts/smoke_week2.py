@@ -8,6 +8,12 @@ import httpx
 
 def main() -> None:
     with httpx.Client(base_url="http://api:8000/api/v1/", timeout=15) as client:
+        articles = client.get("articles")
+        articles.raise_for_status()
+        assert len(articles.json()) == 10
+        offers = client.get("discounts")
+        offers.raise_for_status()
+        assert all(item["is_demo"] for item in offers.json())
         registration = client.post(
             "auth/register",
             json={

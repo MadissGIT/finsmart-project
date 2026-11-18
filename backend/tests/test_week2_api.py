@@ -9,7 +9,7 @@ from zoneinfo import ZoneInfo
 
 import httpx
 import pytest
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncSession
 
 from src.app import app
@@ -715,6 +715,7 @@ def test_week3_diagnosis_matches_only_relevant_unexpired_discounts(api_postgres)
         async with AsyncSession(
             bind=connection, join_transaction_mode="create_savepoint"
         ) as session:
+            await session.execute(update(Discount).values(valid_until=deadline - timedelta(days=1)))
             for category, name, expiry in [
                 (1, "Магазин", deadline),
                 (1, "Старая акция", deadline - timedelta(days=1)),
@@ -743,5 +744,66 @@ def test_week3_diagnosis_matches_only_relevant_unexpired_discounts(api_postgres)
         alerts = {alert["type"]: alert for alert in response.json()["diagnostics"]["alerts"]}
         assert "FD-08" in alerts
         assert [offer["partner_name"] for offer in alerts["FD-06"]["discounts"]] == ["Магазин"]
+
+    runner.run(scenario())
+
+
+def test_week4_catalog_and_persistent_achievements(api_postgres) -> None:
+    runner, client, connection = api_postgres
+
+    async def scenario() -> None:
+        articles = await client.get("/api/v1/articles")
+        assert articles.status_code == 200
+        assert len(articles.json()) == 10
+        first = articles.json()[0]
+        assert first["content_markdown"]
+        assert first["action_checklist"]
+        filtered = await client.get("/api/v1/articles", params={"tags": first["tags"][0]})
+        assert all(first["tags"][0] in row["tags"] for row in filtered.json())
+        assert (await client.get("/api/v1/articles/art-01")).json() == first
+        assert (await client.get("/api/v1/articles/missing")).status_code == 404
+        assert (await client.get("/api/v1/articles", params={"tags": "missing"})).json() == []
+        offers = (await client.get("/api/v1/discounts")).json()
+        assert offers
+        assert all(row["is_demo"] for row in offers)
+        filtered_offers = (await client.get("/api/v1/discounts?category_id=1")).json()
+        assert all(row["category_id"] == 1 for row in filtered_offers)
+        assert (await client.get("/api/v1/achievements")).status_code == 401
+        tokens = await register(client, "badges@example.com")
+        client.headers["Authorization"] = f"Bearer {tokens['access_token']}"
+        initial = (await client.get("/api/v1/achievements")).json()
+        assert len(initial["items"]) == 10
+        assert initial["reward_points"] == 0
+        content = (FIXTURES / "tbank.csv").read_bytes()
+        for _ in range(2):
+            result = await client.post(
+                "/api/v1/transactions/import-statement", files={"file": ("a.csv", content)}
+            )
+            assert result.status_code == 200, result.text
+        goal = await client.post(
+            "/api/v1/goals",
+            json={"title": "Резерв", "target_amount": 100, "deadline": "2099-12-31"},
+        )
+        assert goal.status_code == 201, goal.text
+        goal_id = goal.json()["id"]
+        deposited = await client.post(
+            f"/api/v1/goals/{goal_id}/deposit", json={"amount": 100, "source": "free_money"}
+        )
+        assert deposited.status_code == 200, deposited.text
+        earned = (await client.get("/api/v1/achievements")).json()
+        assert earned["reward_points"] == 55
+        assert {row["code"] for row in earned["items"] if row["unlocked"]} == {
+            "BADGE_FIRST_IMPORT",
+            "BADGE_PIGGY_CREATED",
+            "BADGE_FIRST_DEPOSIT",
+            "BADGE_GOAL_REACHED",
+        }
+        assert (await client.delete(f"/api/v1/goals/{goal_id}")).status_code == 204
+        assert (await client.get("/api/v1/achievements")).json() == earned
+        other = await register(client, "no-badges@example.com")
+        result = await client.get(
+            "/api/v1/achievements", headers={"Authorization": f"Bearer {other['access_token']}"}
+        )
+        assert result.json()["reward_points"] == 0
 
     runner.run(scenario())

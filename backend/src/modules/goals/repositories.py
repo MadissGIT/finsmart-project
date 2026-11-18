@@ -6,6 +6,7 @@ from sqlalchemy import Date, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db.models import Goal, GoalContribution
+from src.modules.achievements.repositories import AchievementRepository
 
 
 class GoalRepository:
@@ -65,6 +66,19 @@ class GoalRepository:
 
     async def save(self, record: Goal | GoalContribution) -> None:
         self._session.add(record)
+        await self._session.flush()
+        if isinstance(record, Goal):
+            await AchievementRepository(self._session).award(record.user_id, "BADGE_PIGGY_CREATED")
+        else:
+            goal = await self._session.get(Goal, record.goal_id)
+            if goal is not None:
+                await AchievementRepository(self._session).award(
+                    goal.user_id, "BADGE_FIRST_DEPOSIT"
+                )
+                if await self.total(goal.id) >= goal.target_amount:
+                    await AchievementRepository(self._session).award(
+                        goal.user_id, "BADGE_GOAL_REACHED"
+                    )
         await self._session.commit()
 
     async def delete(self, goal: Goal) -> None:

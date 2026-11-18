@@ -58,6 +58,9 @@ class HealthIndices(BaseModel):
 
 
 class DiscountOffer(BaseModel):
+    is_demo: bool
+    benefit: str
+    conditions: str
     id: UUID
     partner_name: str
     title: str
