@@ -99,7 +99,8 @@ jobs:
             | python3 -c 'import json,sys; print(json.load(sys.stdin)["access_token"])')
           test -n "$token"
           docker compose -f compose.production.yaml restart api
-          curl -fsS --retry 15 --retry-connrefused --retry-delay 2 \
+          docker compose -f compose.production.yaml up --wait --wait-timeout 60
+          curl -fsS \
             -H "Authorization: Bearer $token" http://127.0.0.1:8000/api/v1/users/me >/dev/null
       - if: failure()
         run: docker compose -f compose.production.yaml ps --all
