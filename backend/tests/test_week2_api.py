@@ -807,3 +807,65 @@ def test_week4_catalog_and_persistent_achievements(api_postgres) -> None:
         assert result.json()["reward_points"] == 0
 
     runner.run(scenario())
+
+
+def test_release_filters_trend_and_recommendations(api_postgres) -> None:
+    runner, client, _ = api_postgres
+
+    async def scenario() -> None:
+        token = await register(client, "release@example.com")
+        client.headers["Authorization"] = f"Bearer {token['access_token']}"
+        profile = await client.patch("/api/v1/users/me", json={"full_name": "  Новое имя  "})
+        assert profile.status_code == 200, profile.text
+        assert (await client.get("/api/v1/users/me")).json()["full_name"] == "Новое имя"
+        today = datetime.now(ZoneInfo("Europe/Moscow")).date()
+        for category, amount in [(1, 500), (2, 400), (5, 300), (7, 200)]:
+            created = await client.post(
+                "/api/v1/transactions",
+                json={
+                    **MANUAL_TRANSACTION,
+                    "category_id": category,
+                    "amount": amount,
+                    "transaction_date": f"{today}T12:00:00+03:00",
+                    "merchant_name": "Касса 20%",
+                },
+            )
+            assert created.status_code == 201, created.text
+        endpoint = "/api/v1/transactions"
+        filtered = await client.get(
+            endpoint,
+            params={
+                "category_id": 2,
+                "operation_type": "DEBIT",
+                "q": "КАССА 20%",
+            },
+        )
+        assert [row["amount"] for row in filtered.json()] == [400]
+        assert (await client.get(endpoint, params={"q": "_"})).json() == []
+        assert (await client.get(endpoint, params={"operation_type": "CREDIT"})).json() == []
+        trend = await client.get(
+            "/api/v1/analytics/expenses/trend",
+            params={
+                "from_date": str(today - timedelta(days=1)),
+                "to_date": str(today),
+            },
+        )
+        assert trend.status_code == 200, trend.text
+        assert [point["amount"] for point in trend.json()] == [0, 1400]
+        offers = await client.get("/api/v1/discounts/recommended")
+        assert offers.status_code == 200, offers.text
+        assert offers.json()["recommendation_basis"] == [
+            "Супермаркеты",
+            "Транспорт и авто",
+            "Кафе и рестораны",
+        ]
+        assert {item["category_id"] for item in offers.json()["items"]} <= {1, 2, 5}
+        outsider = await register(client, "release-foreign@example.com")
+        headers = {"Authorization": f"Bearer {outsider['access_token']}"}
+        assert (await client.get(endpoint, headers=headers)).json() == []
+        assert (await client.get("/api/v1/discounts/recommended", headers=headers)).json() == {
+            "recommendation_basis": [],
+            "items": [],
+        }
+
+    runner.run(scenario())

@@ -4,7 +4,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Response, UploadFile, status
 
-from src.db.models import BankSource, User
+from src.db.models import BankSource, OperationType, User
 from src.modules.statements.parser import MAX_FILE_BYTES
 from src.modules.statements.schemas import StatementError, TransactionCreate, TransactionUpdate
 from src.modules.statements.service import (
@@ -60,10 +60,20 @@ async def list_transactions(
     offset: Annotated[int, Query(ge=0)] = 0,
     from_date: date | None = None,
     to_date: date | None = None,
+    category_id: Annotated[int | None, Query(ge=1, le=2147483647)] = None,
+    operation_type: OperationType | None = None,
+    q: Annotated[str | None, Query(min_length=1, max_length=255)] = None,
 ) -> list[TransactionResponse]:
     try:
         rows = await statement_service.list_transactions(
-            user_id=user.id, limit=limit, offset=offset, from_date=from_date, to_date=to_date
+            user_id=user.id,
+            limit=limit,
+            offset=offset,
+            from_date=from_date,
+            to_date=to_date,
+            category_id=category_id,
+            operation_type=operation_type,
+            search=q.strip() if q else None,
         )
     except InvalidTransactionError as err:
         raise HTTPException(422, str(err)) from err

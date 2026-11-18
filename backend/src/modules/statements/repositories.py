@@ -2,12 +2,14 @@ from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
-from sqlalchemy import select, update
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.db.models import Category, Transaction, UserRule
+from src.db.models import Category, OperationType, Transaction, UserRule
 from src.modules.achievements.repositories import AchievementRepository
+
+RUSSIAN_UPPERCASE = "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ"
 
 
 class TransactionRepository:
@@ -51,7 +53,15 @@ class TransactionRepository:
         return imported
 
     async def list_transactions(
-        self, user_id: UUID, limit: int, offset: int, start: datetime | None, end: datetime | None
+        self,
+        user_id: UUID,
+        limit: int,
+        offset: int,
+        start: datetime | None,
+        end: datetime | None,
+        category_id: int | None,
+        operation_type: OperationType | None,
+        search: str | None,
     ) -> list[tuple[Transaction, Category]]:
         query = (
             select(Transaction, Category)
@@ -65,6 +75,27 @@ class TransactionRepository:
             query = query.where(Transaction.transaction_date >= start)
         if end is not None:
             query = query.where(Transaction.transaction_date < end)
+        if category_id is not None:
+            query = query.where(Transaction.category_id == category_id)
+        if operation_type is not None:
+            query = query.where(Transaction.operation_type == operation_type)
+        if search:
+            query = query.where(
+                or_(
+                    func.translate(
+                        Transaction.merchant_name,
+                        RUSSIAN_UPPERCASE,
+                        RUSSIAN_UPPERCASE.lower(),
+                        type_=Transaction.merchant_name.type,
+                    ).icontains(search.lower(), autoescape=True),
+                    func.translate(
+                        Transaction.raw_description,
+                        RUSSIAN_UPPERCASE,
+                        RUSSIAN_UPPERCASE.lower(),
+                        type_=Transaction.raw_description.type,
+                    ).icontains(search.lower(), autoescape=True),
+                )
+            )
         result = await self._session.execute(query)
         return [(transaction, category) for transaction, category in result.tuples()]
 

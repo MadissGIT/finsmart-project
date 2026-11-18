@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 from pydantic import BaseModel
 
 from src.common_types import JsonDecimal
-from src.db.models import BankSource, Transaction
+from src.db.models import BankSource, OperationType, Transaction
 from src.modules.categorization.service import CategorizationService
 from src.modules.statements.parser import StatementParser, clean_merchant
 from src.modules.statements.repositories import TransactionRepository
@@ -228,7 +228,15 @@ class StatementService:
         await self._transaction_repository.delete_transaction(transaction)
 
     async def list_transactions(
-        self, user_id: UUID, limit: int, offset: int, from_date: date | None, to_date: date | None
+        self,
+        user_id: UUID,
+        limit: int,
+        offset: int,
+        from_date: date | None,
+        to_date: date | None,
+        category_id: int | None,
+        operation_type: OperationType | None,
+        search: str | None,
     ) -> list[tuple[Transaction, str]]:
         if (
             from_date == date.min
@@ -251,6 +259,13 @@ class StatementService:
             else None
         )
         rows = await self._transaction_repository.list_transactions(
-            user_id=user_id, limit=limit, offset=offset, start=start, end=end
+            user_id=user_id,
+            limit=limit,
+            offset=offset,
+            start=start,
+            end=end,
+            category_id=category_id,
+            operation_type=operation_type,
+            search=search,
         )
         return [(transaction, category.name) for transaction, category in rows]

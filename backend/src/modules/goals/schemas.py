@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from enum import StrEnum
 from typing import Annotated, Self
 from uuid import UUID
@@ -75,3 +75,12 @@ class DepositResponse(BaseModel):
     warning: str | None
     acceleration_days: int
     message: str
+
+
+class ContributionResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    amount: JsonDecimal
+    source: DepositSource
+    created_at: datetime

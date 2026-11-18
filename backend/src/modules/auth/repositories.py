@@ -44,3 +44,7 @@ class AuthRepository:
             await self._session.delete(old_session)
         self._session.add(new_session)
         await self._session.commit()
+
+    async def save_user(self, user: User) -> None:
+        self._session.add(user)
+        await self._session.commit()

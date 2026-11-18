@@ -10,7 +10,12 @@ from src.db.database import get_async_session
 from src.db.models import User
 from src.modules.achievements.repositories import AchievementRepository
 from src.modules.catalog.repositories import CatalogRepository
-from src.modules.catalog.service import Article, CatalogService, DiscountResponse
+from src.modules.catalog.service import (
+    Article,
+    CatalogService,
+    DiscountResponse,
+    RecommendedDiscounts,
+)
 from src.routes.auth.dependencies import get_current_user
 
 router = APIRouter(tags=["Catalog"])
@@ -58,3 +63,12 @@ async def achievements(
     service: Service,
 ) -> dict:
     return await service.achievements(user.id)
+
+
+@router.get("/discounts/recommended")
+async def recommended_discounts(
+    user: Annotated[User, Depends(get_current_user)],
+    service: Service,
+) -> RecommendedDiscounts:
+    timezone = ZoneInfo(get_project_settings().financial_timezone)
+    return await service.recommended_discounts(user.id, datetime.now(timezone).date(), timezone)
