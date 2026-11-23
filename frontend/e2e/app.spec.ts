@@ -8,7 +8,7 @@ const routes = [
   ['/register/profile', 'Создать аккаунт'],
   ['/register/success', 'Создать аккаунт'],
   ['/setup', 'Давайте настроим Ваш профиль'],
-  ['/transactions', 'Операции'],
+  ['/transactions', 'Транзакции'],
   ['/analytics', 'Аналитика'],
   ['/goals', 'Цели'],
   ['/auth', 'С возвращением!'],
@@ -31,7 +31,7 @@ test('прямые адреса и обновление страниц сохр�
 test('навигация показывает активный раздел и поддерживает историю', async ({ page }, testInfo) => {
   await page.goto('/');
   const nav = page.getByRole('navigation', { name: testInfo.project.name === 'mobile' ? 'Мобильная навигация' : 'Основная навигация' });
-  for (const [label, title] of [['Транзакции', 'Операции'], ['Копилки', 'Цели'], ['Скидки', 'Скидки'], ['Ещё', 'Ещё']]) {
+  for (const [label, title] of [['Транзакции', 'Транзакции'], ['Копилки', 'Цели'], ['Скидки', 'Скидки'], ['Ещё', 'Ещё']]) {
     const link = nav.getByRole('link', { name: label, exact: true });
     await link.click();
     await expect(page.getByRole('heading', { level: 1, name: title, exact: true })).toBeVisible();

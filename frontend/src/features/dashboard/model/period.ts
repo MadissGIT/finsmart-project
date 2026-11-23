@@ -1,3 +1,6 @@
+import { financialToday, isCalendarDate } from '@/shared/lib/calendar';
+export { financialToday, isCalendarDate } from '@/shared/lib/calendar';
+
 export const periodPresets = [
   { value: 'current_month', label: 'Текущий месяц' },
   { value: 'previous_month', label: 'Прошлый месяц' },
@@ -10,20 +13,7 @@ export type PeriodPreset = typeof periodPresets[number]['value'];
 export interface DateRange { from: string; to: string }
 export interface PeriodSelection { preset: PeriodPreset; range: DateRange; error: string | null }
 
-const financialTimezone = import.meta.env.VITE_FINANCIAL_TIMEZONE || 'Europe/Moscow';
-
-export function financialToday(now = new Date()): string {
-  const parts = new Intl.DateTimeFormat('en-US', { timeZone: financialTimezone, year: 'numeric', month: '2-digit', day: '2-digit' }).formatToParts(now);
-  return ['year', 'month', 'day'].map((type) => parts.find((item) => item.type === type)?.value).join('-');
-}
-
 function iso(date: Date) { return date.toISOString().slice(0, 10); }
-
-export function isCalendarDate(value: string): boolean {
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || value < '1900-01-01' || value > '9998-12-31') return false;
-  const timestamp = Date.parse(value + 'T00:00:00Z');
-  return Number.isFinite(timestamp) && iso(new Date(timestamp)) === value;
-}
 
 export function validateRange(range: DateRange): string | null {
   if (!isCalendarDate(range.from) || !isCalendarDate(range.to)) return 'Укажите обе даты периода.';

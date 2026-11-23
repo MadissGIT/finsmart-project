@@ -200,6 +200,7 @@
 
 /* Данные за выбранный период поступают из API. */
 .dashboard-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.dashboard-heading-actions { display: flex; align-items: center; gap: 4px; }
 .dashboard-summary > .summary-tile:last-child { grid-column: 1 / -1; }
 .summary-tile > div { min-width: 0; }
 .summary-tile dd { white-space: normal; overflow-wrap: anywhere; font-size: clamp(16px, 4vw, 22px); }

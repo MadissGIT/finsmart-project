@@ -20,7 +20,7 @@ export default function DashboardPage() {
 
   return <div className="dashboard-page" aria-busy={status === 'loading'}>
     <div className="dashboard-heading"><div><h1>{firstName ? 'Привет, ' + firstName + '!' : 'Привет!'}</h1><p>Твой финансовый обзор</p></div>
-      {status === 'ready' ? <button type="button" className="icon-button" onClick={dashboard.reload} aria-label="Обновить финансовый обзор"><RefreshCw size={18} /></button> : null}
+      {status === 'ready' ? <div className="dashboard-heading-actions"><Link to="/transactions?add=1" className="icon-button" aria-label="Добавить операцию"><img src="/figma/transactions/c46ca.svg" alt="" /></Link><button type="button" className="icon-button" onClick={dashboard.reload} aria-label="Обновить финансовый обзор"><RefreshCw size={18} /></button></div> : null}
     </div>
     <PeriodFilter selection={selection} onChange={dashboard.setSearch} />
     <DashboardNotice status={status} error={dashboard.error} reload={dashboard.reload} />

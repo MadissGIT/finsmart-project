@@ -11,8 +11,8 @@ function isCategory(value: unknown): value is Category {
     typeof item.budget_group === 'string' && groups.includes(item.budget_group);
 }
 
-export async function getCategories(): Promise<Category[]> {
-  const { data } = await api.get<unknown>('/categories');
+export async function getCategories(signal?: AbortSignal): Promise<Category[]> {
+  const { data } = await api.get<unknown>('/categories', { signal });
   if (!Array.isArray(data) || !data.every(isCategory)) throw new Error('Unexpected categories response');
   return data;
 }

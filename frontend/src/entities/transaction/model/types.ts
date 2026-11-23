@@ -7,7 +7,7 @@ export interface CreateTransactionRequest {
   category_id: number;
   transaction_date: string;
   merchant_name: string;
-  comment?: string;
+  comment?: string | null;
 }
 
 export interface Transaction {
@@ -18,6 +18,11 @@ export interface Transaction {
   category_name: string;
   transaction_date: string;
   merchant_name: string;
+  comment: string | null;
+  mcc_code: string | null;
+  bank_source: 'TBANK' | 'SBER' | 'VTB' | 'MANUAL';
+  requires_review: boolean;
+  confidence: number;
 }
 
 // Импорт в спецификации возвращает date, ручное создание — transaction_date.
