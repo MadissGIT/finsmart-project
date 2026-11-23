@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { api } from '@/shared/api/client';
-import { getDashboard } from './api';
-import { parseDashboard } from './model/parse';
+import { getDashboard, getExpenseTrend } from './api';
+import { parseDashboard, parseExpenseTrend } from './model/parse';
 
 const response = {
   period: { from: '2026-10-01', to: '2026-10-31' },
@@ -37,5 +37,27 @@ describe('контракт аналитики действующего backend',
   it('не показывает данные за другой период', async () => {
     api.defaults.adapter = async (config) => ({ data: response, status: 200, statusText: 'OK', headers: {}, config });
     await expect(getDashboard({ from: '2026-11-01', to: '2026-11-30' })).rejects.toThrow('неожиданном формате');
+  });
+});
+
+describe('динамика расходов', () => {
+  const period = { from: '2026-10-07', to: '2026-10-14' };
+  const weekly = [{ date: '2026-10-05', amount: 250 }, { date: '2026-10-12', amount: 0 }];
+
+  it('передаёт группировку и принимает понедельник первой неполной недели', async () => {
+    api.defaults.adapter = async (config) => {
+      expect(config.url).toBe('/analytics/expenses/trend');
+      expect(config.params).toEqual({ from_date: period.from, to_date: period.to, group_by: 'week' });
+      return { data: weekly, status: 200, statusText: 'OK', headers: {}, config };
+    };
+    await expect(getExpenseTrend(period, 'week')).resolves.toEqual(weekly);
+  });
+
+  it.each([
+    { data: [] },
+    { data: [{ date: '2026-10-07', amount: 250 }, weekly[1]] },
+    { data: [weekly[0], { date: '2026-10-12', amount: -1 }] },
+  ])('отклоняет некорректный ответ %j', ({ data }) => {
+    expect(() => parseExpenseTrend(data, period, 'week')).toThrow('неожиданном формате');
   });
 });

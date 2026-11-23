@@ -4,14 +4,14 @@ import type { Transaction } from '@/entities/transaction/model/types';
 import { changeTransactionCategory } from '@/entities/transaction/transactions-api';
 import { formatMoney } from '@/shared/lib/format';
 import { eligibleCategories } from '../model/transactions';
-import { useTransactionMutation } from '../model/useTransactionMutation';
+import { useApiMutation } from '@/shared/api/useApiMutation';
 import { CategoryIcon, TransactionAsset } from './CategoryIcon';
 import { TransactionSheet } from './TransactionSheet';
 
 export function TransactionCategory({ item, categories, onClose, onSaved }: { item: Transaction; categories: Category[]; onClose: () => void; onSaved: () => void }) {
   const [selected, setSelected] = useState(item.category_id);
   const [rule, setRule] = useState(false);
-  const mutation = useTransactionMutation();
+  const mutation = useApiMutation();
   const category = categories.find((value) => value.id === selected);
   function save(remember: boolean) { void mutation.run(() => changeTransactionCategory(item.id, { category_id: selected, save_as_global_rule: remember }), onSaved); }
   return <TransactionSheet key={rule ? 'rule' : 'category'} title={rule ? 'Запомнить правило?' : 'Изменить категорию'} variant={rule ? 'center' : 'bottom'} busy={mutation.busy} onClose={rule ? () => setRule(false) : onClose}>

@@ -46,6 +46,14 @@ export function periodSearch(preset: PeriodPreset, range: DateRange): URLSearchP
   return search;
 }
 
+// Сервер принимает для диагноза до 31 календарного дня включительно.
+export function diagnosisRange(range: DateRange): DateRange {
+  const start = new Date(range.to + 'T00:00:00Z');
+  start.setUTCDate(start.getUTCDate() - 30);
+  const earliest = iso(start);
+  return { from: range.from < earliest ? earliest : range.from, to: range.to };
+}
+
 export function formatRange(range: DateRange): string {
   if (validateRange(range)) return 'Выберите период';
   const formatter = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });

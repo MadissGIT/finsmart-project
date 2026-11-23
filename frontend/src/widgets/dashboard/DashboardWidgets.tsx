@@ -1,7 +1,12 @@
 import { ChevronRight, Info, Plus, Target } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { DashboardResponse } from '@/entities/analytics/model/types';
-import type { Goal } from '@/entities/goal/model/types';
+import { listGoals } from '@/entities/goal/api';
+import { useAuth } from '@/features/auth/model/context';
+import { formatDeadline, formatPercent, nearestGoal } from '@/features/goals/model/goals';
+import { GoalIcon } from '@/features/goals/ui/GoalVisual';
+import { getAuthGeneration } from '@/shared/api/tokens';
+import { useApiQuery } from '@/shared/api/useApiQuery';
 import { formatMoney } from '@/shared/lib/format';
 
 export function BudgetScore({ score, onHelp }: { score: number | null; onHelp: () => void }) {
@@ -41,15 +46,47 @@ export function BudgetStrip({ budget, to = '/analytics' }: { budget?: DashboardR
   );
 }
 
-export function GoalPreview({ goal }: { goal?: Goal }) {
+export function GoalPreview() {
+  const auth = useAuth();
+  const signedIn = auth.status === 'authenticated';
+  return <GoalPreviewContent key={(auth.user?.id ?? 'guest') + ':' + getAuthGeneration()} signedIn={signedIn} />;
+}
+
+function GoalPreviewContent({ signedIn }: { signedIn: boolean }) {
+  const query = useApiQuery(listGoals, signedIn);
+  const goal = query.data && nearestGoal(query.data);
   return (
     <section aria-label="Ближайшие цели">
-      <div className="goals-heading"><h2>Ближайшие цели</h2><div className="flex items-center gap-2"><Link to="/goals">Все цели</Link><Link className="goal-plus" to="/goals" aria-label="Перейти к целям"><Plus size={21} /></Link></div></div>
-      {goal ? <Link className="goal-preview" to="/goals">
-        <Target size={21} aria-hidden="true" />
-        <div className="goal-preview-content"><h3>{goal.title}</h3><p>{formatMoney(goal.current_amount)} / {formatMoney(goal.target_amount)}</p><progress className="progress-meter" max={100} value={goal.progress_percent} aria-label={'Прогресс цели ' + goal.title}>{goal.progress_percent}%</progress></div>
-        <p className="goal-preview-deadline">{goal.months_left} месяца<span>осталось</span><span>{goal.progress_percent}%</span></p>
-      </Link> : <div className="goal-preview goal-empty"><Target size={21} aria-hidden="true" /><div><p>Целей пока нет</p><span>Здесь появятся Ваши копилки</span></div></div>}
+      <div className="goals-heading">
+        <h2>Ближайшие цели</h2>
+        <div className="flex items-center gap-2">
+          <Link to="/goals">Все цели</Link>
+          <Link className="goal-plus" to="/goals?add=1" aria-label="Создать цель"><Plus size={21} aria-hidden="true" /></Link>
+        </div>
+      </div>
+      {query.loading && <p className="goal-preview" role="status">Загружаем копилки…</p>}
+      {query.error && <div className="goal-preview goal-preview-error">
+        <p role="alert">Не удалось загрузить копилки.</p>
+        <button type="button" className="inline-link" onClick={query.retry}>Повторить</button>
+      </div>}
+      {goal && <Link className="goal-preview" to={'/goals/' + goal.id}>
+        <GoalIcon name={goal.icon} />
+        <div className="goal-preview-content">
+          <h3>{goal.title}</h3>
+          <p>{formatMoney(goal.current_amount)} / {formatMoney(goal.target_amount)}</p>
+          <progress className="progress-meter" max={100} value={goal.progress_percent} aria-label={'Прогресс цели ' + goal.title} />
+        </div>
+        <p className="goal-preview-deadline">{formatPercent(goal.progress_percent)}<span>{formatDeadline(goal.deadline)}</span></p>
+      </Link>}
+      {(!signedIn || (query.data && !goal)) && (
+        <div className="goal-preview goal-empty">
+          <Target size={21} aria-hidden="true" />
+          <div>
+            <p>{query.data?.length ? 'Активных целей пока нет' : 'Целей пока нет'}</p>
+            <span>{signedIn ? 'Создайте цель, чтобы начать копить' : 'Войдите, чтобы увидеть свои копилки'}</span>
+          </div>
+        </div>
+      )}
     </section>
   );
 }

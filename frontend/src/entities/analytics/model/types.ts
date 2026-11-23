@@ -19,14 +19,6 @@ export interface CategoryExpense {
   percent: number;
 }
 
-export interface DiagnosticAlert {
-  // В черновом контракте приведён только WARNING_OVERSPEND; список ещё открыт.
-  type: string;
-  category: string;
-  message: string;
-  potential_saving: number;
-}
-
 export interface DashboardResponse {
   period: { from: string; to: string };
   summary: DashboardSummary;
@@ -42,8 +34,44 @@ export interface DashboardResponse {
   budget_score: number;
 }
 
-export interface DiagnosticsSummary {
+export interface DiagnosticOffer {
+  id: string;
+  partner_name: string;
+  title: string;
+  benefit: string;
+  is_demo: boolean;
+  valid_until: string;
+}
+
+export interface DiagnosticAlert {
+  type: string;
+  category: string;
+  title: string;
+  message: string;
+  recommendation: string;
+  potential_saving: number;
+  badge: string | null;
+  discounts: DiagnosticOffer[];
+}
+
+export interface FinancialDiagnosis {
   health_score: number;
-  persona: string;
+  status: string;
+  color: string;
+  indices: { balance: number; budget: number; goals: number; regularity: number };
   alerts: DiagnosticAlert[];
+  unavailable: Record<string, string>;
+}
+
+export interface DiagnosisResponse {
+  period: DashboardResponse['period'];
+  summary: DashboardSummary;
+  diagnostics: FinancialDiagnosis;
+}
+
+export type ExpenseGrouping = 'day' | 'week';
+
+export interface ExpensePoint {
+  date: string;
+  amount: number;
 }

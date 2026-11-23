@@ -13,6 +13,9 @@ import { TransactionsPage } from '@/pages/transactions/TransactionsPage';
 import { GoalsPage } from '@/pages/goals/GoalsPage';
 import { AuthPage } from '@/pages/auth/AuthPage';
 import { MorePage } from '@/pages/more/MorePage';
+import { KnowledgePage } from '@/pages/more/KnowledgePage';
+import { ArticlePage } from '@/pages/more/ArticlePage';
+import { AboutPage, FaqPage, SupportPage } from '@/pages/more/HelpPages';
 import { DiscountsPage } from '@/pages/discounts/DiscountsPage';
 import { NotFoundPage } from '@/pages/not-found/NotFoundPage';
 import { RouteEffects } from './RouteEffects';
@@ -40,8 +43,14 @@ export function App() {
               <Route path="transactions" element={<TransactionsPage />} />
               <Route path="analytics" element={<AnalyticsPage />} />
               <Route path="goals" element={<GoalsPage />} />
+              <Route path="goals/:goalId" element={<GoalsPage />} />
               <Route path="discounts" element={<DiscountsPage />} />
               <Route path="more" element={<MorePage />} />
+              <Route path="more/knowledge" element={<KnowledgePage />} />
+              <Route path="more/knowledge/:articleId" element={<ArticlePage />} />
+              <Route path="more/faq" element={<FaqPage />} />
+              <Route path="more/support" element={<SupportPage />} />
+              <Route path="more/about" element={<AboutPage />} />
               <Route path="auth" element={<AuthPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Route>

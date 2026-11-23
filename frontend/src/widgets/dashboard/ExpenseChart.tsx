@@ -1,4 +1,5 @@
 import { useId, useState } from 'react';
+import type { ReactNode } from 'react';
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import type { CategoryExpense } from '@/entities/analytics/model/types';
 import { formatMoney } from '@/shared/lib/format';
@@ -10,13 +11,15 @@ interface Props {
   compact?: boolean;
   title?: string;
   emptyText?: string;
+  renderCategory?: (category: CategoryExpense) => ReactNode;
 }
 
-export function ExpenseChart({ categories, total, compact = false, title = 'Расходы по категориям', emptyText = 'За этот период расходов пока нет.' }: Props) {
+export function ExpenseChart({ categories, total, compact = false, title = 'Расходы по категориям', emptyText = 'За этот период расходов пока нет.', renderCategory }: Props) {
   const id = useId();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const data = toCategoryChartData(categories, total);
   const selected = data.find((item) => item.id === selectedId);
+  const selectedCategory = selected && categories.find((category) => 'category-' + category.category_id === selected.id);
   const percent = (value: number) => (total > 0 ? value / total * 100 : 0).toLocaleString('ru-RU', { maximumFractionDigits: 1 });
   function select(key: string) { setSelectedId((current) => current === key ? null : key); }
 
@@ -47,6 +50,7 @@ export function ExpenseChart({ categories, total, compact = false, title = 'Ра
       <div className="expense-selection"><p role="status">{selected ? selected.name + ': ' + formatMoney(selected.value) + ' · ' + percent(selected.value) + '%' : 'Выберите категорию на диаграмме или в списке.'}</p>
         {selected ? <button type="button" className="inline-link" onClick={() => setSelectedId(null)}>Показать все расходы</button> : null}
       </div>
+      {selectedCategory && renderCategory?.(selectedCategory)}
     </> : <div className="expense-empty"><div className="expense-empty-ring" aria-hidden="true" /><p>{emptyText}</p></div>}
   </section>;
 }

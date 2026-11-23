@@ -10,7 +10,7 @@ const routes = [
   ['/setup', 'Давайте настроим Ваш профиль'],
   ['/transactions', 'Транзакции'],
   ['/analytics', 'Аналитика'],
-  ['/goals', 'Цели'],
+  ['/goals', 'Финансовые цели'],
   ['/auth', 'С возвращением!'],
   ['/discounts', 'Скидки'],
   ['/more', 'Ещё'],
@@ -31,7 +31,7 @@ test('прямые адреса и обновление страниц сохр�
 test('навигация показывает активный раздел и поддерживает историю', async ({ page }, testInfo) => {
   await page.goto('/');
   const nav = page.getByRole('navigation', { name: testInfo.project.name === 'mobile' ? 'Мобильная навигация' : 'Основная навигация' });
-  for (const [label, title] of [['Транзакции', 'Транзакции'], ['Копилки', 'Цели'], ['Скидки', 'Скидки'], ['Ещё', 'Ещё']]) {
+  for (const [label, title] of [['Транзакции', 'Транзакции'], ['Копилки', 'Финансовые цели'], ['Скидки', 'Скидки'], ['Ещё', 'Ещё']]) {
     const link = nav.getByRole('link', { name: label, exact: true });
     await link.click();
     await expect(page.getByRole('heading', { level: 1, name: title, exact: true })).toBeVisible();
@@ -77,6 +77,7 @@ test('пустой аккаунт получает нулевые показат
 
 test('readiness и категории проходят из браузера через dev-прокси', async ({ page }) => {
   await page.goto('/more');
+  await page.getByRole('link', { name: /Поддержка/ }).click();
   const healthResponse = page.waitForResponse('**/api/v1/health/ready');
   const categoriesResponse = page.waitForResponse('**/api/v1/categories');
   await page.getByRole('button', { name: 'Проверить подключение' }).click();
@@ -91,7 +92,7 @@ test('readiness и категории проходят из браузера ч�
 
 test('503 показывает ошибку и позволяет повторить запрос', async ({ page }) => {
   await page.route('**/api/v1/health/ready', (route) => route.fulfill({ status: 503, json: { detail: 'Database unavailable' } }));
-  await page.goto('/more');
+  await page.goto('/more/support');
   await page.getByRole('button', { name: 'Проверить подключение' }).click();
   await expect(page.getByRole('status')).toContainText('Сервис пока не готов');
   await page.unroute('**/api/v1/health/ready');
@@ -101,14 +102,14 @@ test('503 показывает ошибку и позволяет повтори
 
 test('не принимает HTML с кодом 200 за готовность сервиса', async ({ page }) => {
   await page.route('**/api/v1/health/ready', (route) => route.fulfill({ status: 200, contentType: 'text/html', body: '<html>Fallback</html>' }));
-  await page.goto('/more');
+  await page.goto('/more/support');
   await page.getByRole('button', { name: 'Проверить подключение' }).click();
   await expect(page.getByRole('status')).toContainText('Не удалось проверить подключение');
 });
 
 test('сетевая ошибка не ломает экран', async ({ page }) => {
   await page.route('**/api/v1/health/ready', (route) => route.abort('failed'));
-  await page.goto('/more');
+  await page.goto('/more/support');
   await page.getByRole('button', { name: 'Проверить подключение' }).click();
   await expect(page.getByRole('status')).toContainText('Нет соединения');
   await expect(page.getByRole('button', { name: 'Проверить подключение' })).toBeEnabled();

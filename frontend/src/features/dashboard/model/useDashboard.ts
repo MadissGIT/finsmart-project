@@ -34,6 +34,6 @@ export function useDashboard() {
   const data = current?.data ?? null;
   const error = selection.error || (auth.status === 'error' ? auth.error : current?.error ?? null);
   const status = auth.status === 'anonymous' ? 'anonymous' : error ? 'error' : data ? 'ready' : 'loading';
-  return { status, data, error, selection, search, setSearch, user: auth.user,
+  return { status, data, error, selection, search, setSearch, user: auth.user, canLoadAnalytics: enabled, revision: attempt,
     reload: () => { if (auth.status === 'error') auth.retryProfile(); else setAttempt((value) => value + 1); } };
 }

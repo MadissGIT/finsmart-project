@@ -7,6 +7,8 @@ test('гость не запрашивает чужую аналитику и н
   await expect(page.getByRole('link', { name: 'Войти', exact: true })).toBeVisible();
   await expect(page.locator('.dashboard-summary dd')).toHaveText(['—', '—', '—']);
   expect(api.budgetRequests).toEqual([]);
+  expect(api.diagnosisRequests).toEqual([]);
+  await expect(page.getByRole('region', { name: 'Финансовое здоровье' })).toHaveCount(0);
 });
 
 test('свой период передаётся серверу и сохраняется при обновлении и возврате', async ({ page }) => {
@@ -91,6 +93,24 @@ test('ошибка сервера скрывает устаревшие сумм
   await page.unroute('**/api/v1/analytics/budget?*', handler);
   await page.getByRole('button', { name: 'Повторить загрузку', exact: true }).click();
   await expect(page.locator('.recharts-pie')).toBeVisible();
+});
+
+test('финансовый диагноз можно повторно загрузить, а бюджет остаётся доступен', async ({ page }) => {
+  await mockAccount(page);
+  await signIn(page);
+  const handler = (route: import('@playwright/test').Route) => route.fulfill({ status: 503 });
+  await page.route('**/api/v1/analytics/dashboard?*', handler);
+  await page.getByRole('button', { name: 'Обновить финансовый обзор' }).click();
+
+  const diagnosis = page.getByRole('region', { name: 'Финансовое здоровье' });
+  await expect(diagnosis.getByRole('alert')).toContainText('не готов');
+  await expect(page.getByRole('progressbar', { name: 'Индекс соблюдения бюджета' })).toBeVisible();
+  await expect(diagnosis.getByRole('meter')).toHaveCount(0);
+
+  await page.unroute('**/api/v1/analytics/dashboard?*', handler);
+  await diagnosis.getByRole('button', { name: 'Повторить расчёт' }).click();
+  await expect(diagnosis.getByRole('meter')).toHaveAttribute('aria-valuenow', '75');
+  await expect(diagnosis.getByText('За этот период предупреждений нет.')).toBeVisible();
 });
 
 test('поздний ответ предыдущего периода не меняет новый выбор', async ({ page }) => {

@@ -7,14 +7,14 @@ import { financialTimezone } from '@/shared/lib/calendar';
 import { FormField } from '@/shared/ui/FormField';
 import { eligibleCategories, transactionDraft, validateTransactionDraft } from '../model/transactions';
 import type { DraftErrors } from '../model/transactions';
-import { useTransactionMutation } from '../model/useTransactionMutation';
+import { useApiMutation } from '@/shared/api/useApiMutation';
 import { CategoryIcon, TransactionAsset } from './CategoryIcon';
 import { TransactionSheet } from './TransactionSheet';
 
 export function TransactionForm({ categories, original, onClose, onSaved }: { categories: Category[]; original?: Transaction; onClose: () => void; onSaved: (item: Transaction) => void }) {
   const [draft, setDraft] = useState(() => transactionDraft(original));
   const [errors, setErrors] = useState<DraftErrors>({});
-  const mutation = useTransactionMutation();
+  const mutation = useApiMutation();
   const available = eligibleCategories(categories, draft.operation_type);
   function changeType(operation_type: OperationType) {
     setDraft((current) => ({ ...current, operation_type, category_id: eligibleCategories(categories, operation_type).some((category) => String(category.id) === current.category_id) ? current.category_id : '' }));

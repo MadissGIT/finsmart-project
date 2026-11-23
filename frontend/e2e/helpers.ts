@@ -29,6 +29,7 @@ export async function mockAccount(page: Page, options: { empty?: boolean } = {})
   let refreshCount = 0;
   let importCount = 0;
   const budgetRequests: string[] = [];
+  const diagnosisRequests: string[] = [];
   const authRequests: string[] = [];
   const tokens = () => ({ user_id: TEST_USER_ID, email, access_token: access, refresh_token: refresh, token_type: 'bearer' });
   const json = (route: Route, status: number, body: unknown) => route.fulfill({ status, json: body });
@@ -51,22 +52,43 @@ export async function mockAccount(page: Page, options: { empty?: boolean } = {})
       refresh = 'test-refresh-' + (refreshCount + 1);
       return json(route, 200, tokens());
     }
-    if (['/users/me', '/analytics/budget', '/transactions/import-statement'].includes(path)) {
+    if (path === '/analytics/expenses/trend') {
+      if (request.headers().authorization !== 'Bearer ' + access) return json(route, 401, { detail: 'Требуется вход' });
+      const from = new Date(url.searchParams.get('from_date') + 'T00:00:00Z');
+      const to = new Date(url.searchParams.get('to_date') + 'T00:00:00Z');
+      const byWeek = url.searchParams.get('group_by') === 'week';
+      if (byWeek) from.setUTCDate(from.getUTCDate() - (from.getUTCDay() + 6) % 7);
+      const points = [];
+      for (const day = from; day <= to; day.setUTCDate(day.getUTCDate() + (byWeek ? 7 : 1))) {
+        points.push({ date: day.toISOString().slice(0, 10), amount: 0 });
+      }
+      return json(route, 200, points);
+    }
+    if (['/users/me', '/analytics/budget', '/analytics/dashboard', '/transactions/import-statement', '/goals'].includes(path)) {
       if (request.headers().authorization !== 'Bearer ' + access) return json(route, 401, { detail: 'Требуется вход' });
       if (path === '/users/me') return json(route, 200, { id: TEST_USER_ID, email, full_name: fullName, created_at: '2026-10-01T00:00:00Z' });
+      if (path === '/goals') return request.method() === 'GET' ? json(route, 200, []) : route.fallback();
       if (path === '/transactions/import-statement') {
         importCount += 1;
         return json(route, 200, { total_parsed: 2, imported_count: 2, duplicates_skipped: 0, skipped_rows: 0 });
       }
-      budgetRequests.push(url.search);
+      const isDiagnosis = path === '/analytics/dashboard';
+      (isDiagnosis ? diagnosisRequests : budgetRequests).push(url.search);
       const from = url.searchParams.get('from_date');
       const to = url.searchParams.get('to_date');
       if (!from || !to) return json(route, 422, { detail: 'Нужны обе даты периода' });
-      return json(route, 200, budgetFixture(from, to, options.empty));
+      const budget = budgetFixture(from, to, options.empty);
+      if (!isDiagnosis) return json(route, 200, budget);
+      return json(route, 200, { ...budget, diagnostics: {
+        health_score: 75,
+        indices: { balance: 100, budget: 100, goals: 50, regularity: 0 },
+        status: 'Стабильное здоровье', color: '#3B82F6', persona: 'Стабильное здоровье',
+        alerts: [], unavailable: {},
+      } });
     }
     return route.fallback();
   });
-  return { budgetRequests, authRequests, get refreshCount() { return refreshCount; }, get importCount() { return importCount; } };
+  return { budgetRequests, diagnosisRequests, authRequests, get refreshCount() { return refreshCount; }, get importCount() { return importCount; } };
 }
 
 export async function signIn(page: Page, email = TEST_EMAIL, password = TEST_PASSWORD) {

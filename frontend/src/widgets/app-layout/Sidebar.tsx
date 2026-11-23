@@ -11,7 +11,7 @@ export function Sidebar() {
     <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r border-slate-100 bg-white px-5 py-7 md:flex">
       <Link className="sidebar-brand" to="/" aria-label="ФинСмарт — на главную"><Brand /></Link>
       <nav aria-label="Основная навигация" className="space-y-1">
-        {navigation.map(({ to, label, icon: Icon }) => <NavLink key={to} to={to} end className={linkClass}><Icon size={20} aria-hidden="true" />{label}</NavLink>)}
+        {navigation.map(({ to, label, icon: Icon }) => <NavLink key={to} to={to} end={to !== '/more' && to !== '/goals'} className={linkClass}><Icon size={20} aria-hidden="true" />{label}</NavLink>)}
       </nav>
       <nav aria-label="Дополнительная навигация" className="mt-5 space-y-1 border-t border-slate-100 pt-5">
         <NavLink to="/analytics" className={linkClass}><ChartPie size={20} aria-hidden="true" />Аналитика</NavLink>

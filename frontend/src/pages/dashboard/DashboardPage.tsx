@@ -8,6 +8,8 @@ import { ExpenseChart } from '@/widgets/dashboard/ExpenseChart';
 import { SummaryCards } from '@/widgets/dashboard/SummaryCards';
 import { DashboardNotice } from '@/widgets/dashboard/DashboardNotice';
 import { BudgetStrip, BudgetScore, GoalPreview } from '@/widgets/dashboard/DashboardWidgets';
+import { Diagnostics } from '@/widgets/dashboard/Diagnostics';
+import { getAuthGeneration } from '@/shared/api/tokens';
 
 export default function DashboardPage() {
   const dashboard = useDashboard();
@@ -35,8 +37,14 @@ export default function DashboardPage() {
           {hasOperations && data?.deficit_financing ? <p className="budget-context-note">За период не учтены доходы. Базой бюджета служат расходы.</p> : null}
         </div>
       </div>
-      <GoalPreview />
     </> : null}
+    {dashboard.canLoadAnalytics && (
+      <Diagnostics
+        key={[user?.id, getAuthGeneration(), selection.range.from, selection.range.to, dashboard.revision].join(':')}
+        range={selection.range}
+      />
+    )}
+    {showPanels && <GoalPreview />}
     <Modal open={healthHelp} title="Соблюдение бюджета" onClose={() => setHealthHelp(false)}>
       <p>{hasOperations ? 'Индекс рассчитывается по Вашим операциям за выбранный период. Он учитывает долю необязательных расходов относительно базы бюджета.' : 'Пока нет операций для расчёта. Здесь появится индекс соблюдения бюджета.'}</p>
       <Link to={'/analytics' + (search ? '?' + search : '')} className="button-primary" onClick={() => setHealthHelp(false)}>Посмотреть аналитику</Link>

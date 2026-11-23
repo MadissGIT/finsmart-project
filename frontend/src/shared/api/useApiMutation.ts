@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { getRequestErrorMessage } from '@/shared/api/client';
 import { getAuthGeneration } from '@/shared/api/tokens';
 
-export function useTransactionMutation() {
+export function useApiMutation() {
   const alive = useRef(true);
   const locked = useRef(false);
   const [busy, setBusy] = useState(false);

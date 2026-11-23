@@ -1,0 +1,22 @@
+.expense-trend { display: grid; gap: 14px; min-width: 0; }
+.expense-trend-header { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; }
+.expense-trend-groups { display: inline-flex; flex-wrap: wrap; gap: 2px; padding: 3px; border-radius: 12px; background: #f0effb; }
+.expense-trend-groups button { min-height: 34px; border-radius: 9px; padding: 4px 10px; color: #4b5470; font-size: 12px; font-weight: 550; }
+.expense-trend-groups button[aria-pressed="true"] { color: #342fd0; background: #fff; }
+.expense-trend-scroll { overflow-x: auto; }
+.expense-trend-chart { height: 220px; }
+.expense-trend-chart .recharts-default-tooltip { border-radius: 10px; font-size: 12px; }
+.expense-trend-notice { padding: 24px 0; color: #596782; font-size: 13px; text-align: center; }
+.expense-trend-error { display: grid; justify-items: start; gap: 8px; color: #a4314d; font-size: 13px; }
+.expense-trend-values { border-top: 1px solid #e9e8f3; padding-top: 10px; color: #495574; font-size: 13px; }
+.expense-trend-values summary { cursor: pointer; color: #342fd0; }
+.expense-trend-table { max-height: 220px; overflow: auto; margin-top: 8px; }
+.expense-trend-table table { width: 100%; border-collapse: collapse; }
+.expense-trend-table th, .expense-trend-table td { border-bottom: 1px solid #e9e8f3; padding: 6px 4px; text-align: left; }
+.expense-trend-table th[scope="row"] { font-weight: 400; }
+.expense-trend-table td, .expense-trend-table th:last-child { text-align: right; font-variant-numeric: tabular-nums; }
+.expense-trend-table thead { position: sticky; top: 0; background: #fff; }
+
+@media (min-width: 640px) {
+  .expense-trend-chart { height: 264px; }
+}

@@ -36,7 +36,7 @@ export function AuthPage() {
       updateSession({ email: email.trim(), stage: 'complete', ...(!sameAccount ? { fullName: '', goal: '', incomeRange: '' } : {}) });
       setPassword('');
       const next = search.get('next');
-      navigate(next && ['/', '/setup', '/analytics', '/transactions'].includes(next) ? next : '/');
+      navigate(next && ['/', '/setup', '/analytics', '/transactions', '/discounts', '/goals'].includes(next) ? next : '/');
     } catch (err) {
       setError(axios.isAxiosError(err) && err.response?.status === 401 ? 'Неверный email или пароль.' : getRequestErrorMessage(err, 'Не удалось войти. Попробуйте ещё раз.'));
     } finally { setBusy(false); }
