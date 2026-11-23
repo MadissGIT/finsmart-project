@@ -920,3 +920,32 @@ def test_monthly_limits_boundaries_and_isolation(api_postgres) -> None:
         assert (await client.get(endpoint)).json() == []
 
     runner.run(scenario())
+
+
+def test_optional_birth_date_is_validated_and_persisted(api_postgres) -> None:
+    runner, client, _ = api_postgres
+
+    async def scenario() -> None:
+        registration = "/api/v1/auth/register"
+        fields = {
+            "email": "birthday@example.com",
+            "password": "Test-password-123!",
+            "full_name": "Demo",
+        }
+        for invalid_date in ("2001-02-29", "1899-12-31", "2999-01-01"):
+            invalid = await client.post(registration, json={**fields, "birth_date": invalid_date})
+            assert invalid.status_code == 422
+        created = await client.post(registration, json={**fields, "birth_date": "2000-02-29"})
+        assert created.status_code == 201, created.text
+        without_date = await register(client, "no-birthday@example.com")
+        for access_token, expected in [
+            (created.json()["access_token"], "2000-02-29"),
+            (without_date["access_token"], None),
+        ]:
+            profile = await client.get(
+                "/api/v1/users/me", headers={"Authorization": f"Bearer {access_token}"}
+            )
+            assert profile.status_code == 200
+            assert profile.json()["birth_date"] == expected
+
+    runner.run(scenario())

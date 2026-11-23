@@ -64,6 +64,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(254), unique=True)
     hashed_password: Mapped[str] = mapped_column(String(255))
     full_name: Mapped[str] = mapped_column(String(200))
+    birth_date: Mapped[date | None]
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 

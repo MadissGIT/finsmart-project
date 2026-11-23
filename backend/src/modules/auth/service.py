@@ -52,6 +52,7 @@ class AuthService:
             email=email,
             hashed_password=password_hash,
             full_name=request.full_name.strip(),
+            birth_date=request.birth_date,
         )
         await self._auth_repository.add_user(user)
         return await self._issue_tokens(user, None)

@@ -69,6 +69,9 @@ export function AuthPage() {
       <h2 className="font-semibold">{auth.user.full_name}</h2>
       <dl className="profile-details">
         <div><dt>Email</dt><dd>{auth.user.email}</dd></div>
+        {auth.user.birth_date && <div><dt>Дата рождения</dt><dd><time dateTime={auth.user.birth_date}>
+          {auth.user.birth_date.split('-').reverse().join('.')}
+        </time></dd></div>}
         <div><dt>Цель использования</dt><dd>{ownPreferences ? profileGoals.find((item) => item.value === session.goal)?.label || 'Не выбрана' : 'Не выбрана'}</dd></div>
         <div><dt>Диапазон дохода</dt><dd>{ownPreferences ? incomeRanges.find((item) => item.value === session.incomeRange)?.label || 'Не указан' : 'Не указан'}</dd></div>
       </dl>
