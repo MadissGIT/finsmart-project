@@ -869,3 +869,54 @@ def test_release_filters_trend_and_recommendations(api_postgres) -> None:
         }
 
     runner.run(scenario())
+
+
+def test_monthly_limits_boundaries_and_isolation(api_postgres) -> None:
+    runner, client, _ = api_postgres
+
+    async def scenario() -> None:
+        endpoint = "/api/v1/limits"
+        assert (await client.get(endpoint)).status_code == 401
+        owner = await register(client, "limits@example.com")
+        client.headers["Authorization"] = f"Bearer {owner['access_token']}"
+        assert (await client.put(f"{endpoint}/1", json={"amount": 0})).status_code == 422
+        assert (await client.put(f"{endpoint}/10", json={"amount": 100})).status_code == 422
+        assert (await client.put(f"{endpoint}/1", json={"amount": "100.00"})).status_code == 204
+        now = datetime.now(ZoneInfo("Europe/Moscow"))
+        for amount, expected in [(79, "ok"), (1, "approaching"), (20, "reached")]:
+            transaction = await client.post(
+                "/api/v1/transactions",
+                json={
+                    **MANUAL_TRANSACTION,
+                    "category_id": 1,
+                    "amount": amount,
+                    "transaction_date": now.isoformat(),
+                },
+            )
+            assert transaction.status_code == 201, transaction.text
+            response = await client.get(endpoint)
+            assert response.status_code == 200, response.text
+            assert response.json()[0]["status"] == expected
+        previous = now.replace(day=1) - timedelta(days=1)
+        for direction, timestamp in [("CREDIT", now), ("DEBIT", previous)]:
+            transaction = await client.post(
+                "/api/v1/transactions",
+                json={
+                    **MANUAL_TRANSACTION,
+                    "category_id": 1,
+                    "amount": 800,
+                    "operation_type": direction,
+                    "transaction_date": timestamp.isoformat(),
+                },
+            )
+            assert transaction.status_code == 201, transaction.text
+        assert (await client.get(endpoint)).json()[0]["spent"] == 100
+        outsider = await register(client, "other-limits@example.com")
+        other_headers = {"Authorization": f"Bearer {outsider['access_token']}"}
+        assert (await client.get(endpoint, headers=other_headers)).json() == []
+        assert (await client.delete(f"{endpoint}/1", headers=other_headers)).status_code == 204
+        assert (await client.get(endpoint)).json()[0]["amount"] == 100
+        assert (await client.delete(f"{endpoint}/1")).status_code == 204
+        assert (await client.get(endpoint)).json() == []
+
+    runner.run(scenario())

@@ -33,3 +33,15 @@ check: lint typecheck test
 # Проверить соответствие БД моделям после запуска API.
 migration-check:
     docker compose exec api alembic check
+
+# Запустить веб-интерфейс, API и отдельную базу для демонстрации.
+demo-up context="default":
+    docker --context {{context}} compose -p finsmart-demo -f compose.yaml -f compose.demo.yaml up --build --wait --wait-timeout 180 api web
+
+# Создать новую учебную учётную запись с синтетическими данными.
+demo-seed context="default":
+    docker --context {{context}} compose -p finsmart-demo -f compose.yaml -f compose.demo.yaml run --build --rm test python -m scripts.seed_demo
+
+# Остановить демонстрационный стенд, сохранив его данные.
+demo-down context="default":
+    docker --context {{context}} compose -p finsmart-demo -f compose.yaml -f compose.demo.yaml down

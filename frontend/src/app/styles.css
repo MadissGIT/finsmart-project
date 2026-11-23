@@ -292,3 +292,29 @@
   .dashboard-grid { grid-template-columns: 1.1fr 1fr; align-items: start; gap: 20px; }
   .dashboard-summary { max-width: none; }
 }
+
+@media print {
+  body:has(.budget-print) *:not(:has(.budget-print)):not(.budget-print):not(.budget-print *) {
+    display: none !important;
+  }
+
+  body:has(.budget-print),
+  body:has(.budget-print) :has(.budget-print) {
+    display: block !important;
+    min-height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    max-width: none !important;
+    overflow: visible !important;
+  }
+
+  .budget-print {
+    padding: 12mm;
+    color: #000;
+    background: #fff;
+  }
+
+  .budget-print tr {
+    break-inside: avoid;
+  }
+}

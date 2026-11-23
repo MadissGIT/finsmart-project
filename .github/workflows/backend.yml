@@ -106,3 +106,19 @@ jobs:
         run: docker compose -f compose.production.yaml ps --all
       - if: always()
         run: docker compose -f compose.production.yaml down
+
+  demo-compose:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: extractions/setup-just@v4
+      - run: just demo-up
+      - run: just demo-seed >/dev/null
+      - name: Verify SPA and API proxy
+        run: |
+          curl -fsS http://127.0.0.1:5173/analytics | grep -q 'id="root"'
+          curl -fsS http://127.0.0.1:5173/api/v1/health/ready
+      - if: failure()
+        run: docker --context default compose -p finsmart-demo -f compose.yaml -f compose.demo.yaml ps --all
+      - if: always()
+        run: just demo-down

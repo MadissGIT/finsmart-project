@@ -89,7 +89,8 @@ def test_cors_rejects_untrusted_origin() -> None:
 @pytest.mark.parametrize(
     ("revision", "expected_status"),
     [
-        ("0006_query_indexes", 200),
+        ("0007_category_limits", 200),
+        ("0006_query_indexes", 503),
         ("0005_catalog", 503),
         ("0004_goal_details", 503),
         ("0003_auth", 503),
