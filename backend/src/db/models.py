@@ -109,6 +109,8 @@ class Transaction(Base):
     __table_args__ = (
         UniqueConstraint("user_id", "import_hash"),
         Index("ix_transactions_user_date", "user_id", "transaction_date"),
+        Index("ix_transactions_user_category_date", "user_id", "category_id", "transaction_date"),
+        Index("ix_transactions_user_created_at", "user_id", "created_at"),
         CheckConstraint("amount BETWEEN 0.01 AND 999999999999.99", name="positive_amount"),
         CheckConstraint("confidence BETWEEN 0 AND 1", name="confidence_range"),
         CheckConstraint("mcc_code IS NULL OR mcc_code ~ '^[0-9]{4}$'", name="valid_mcc"),
@@ -153,18 +155,21 @@ class Goal(Base):
     title: Mapped[str] = mapped_column(String(200))
     target_amount: Mapped[Decimal] = mapped_column(Numeric(14, 2))
     deadline: Mapped[date]
+    icon: Mapped[str] = mapped_column(String(32), server_default="target")
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
 class GoalContribution(Base):
     __tablename__ = "goal_contributions"
     __table_args__ = (
-        Index("ix_goal_contributions_goal_id", "goal_id"),
+        Index("ix_goal_contributions_goal_date", "goal_id", "created_at", "id"),
+        CheckConstraint("source IN ('free_money', 'discount')", name="valid_source"),
         CheckConstraint("amount BETWEEN 0.01 AND 999999999999.99", name="positive_amount"),
     )
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     goal_id: Mapped[UUID] = mapped_column(ForeignKey("goals.id", ondelete="CASCADE"))
+    source: Mapped[str] = mapped_column(String(10), server_default="free_money")
     amount: Mapped[Decimal] = mapped_column(Numeric(14, 2))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
@@ -184,6 +189,11 @@ class Discount(Base):
     promocode: Mapped[str | None] = mapped_column(String(100))
     affiliate_url: Mapped[str] = mapped_column(String(2000))
     valid_until: Mapped[date]
+    code: Mapped[str | None] = mapped_column(String(10), unique=True)
+    activation: Mapped[str] = mapped_column(Text, server_default="")
+    benefit: Mapped[str] = mapped_column(Text, server_default="")
+    conditions: Mapped[str] = mapped_column(Text, server_default="")
+    is_demo: Mapped[bool] = mapped_column(server_default="true")
 
 
 class RefreshSession(Base):
@@ -193,3 +203,26 @@ class RefreshSession(Base):
     user_id: Mapped[UUID] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), index=True)
     token_hash: Mapped[str] = mapped_column(String(64), unique=True)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
+
+
+class Achievement(Base):
+    __tablename__ = "achievements"
+
+    code: Mapped[str] = mapped_column(String(40), primary_key=True)
+    title: Mapped[str] = mapped_column(String(100))
+    level: Mapped[str] = mapped_column(String(20))
+    icon: Mapped[str] = mapped_column(String(20))
+    points: Mapped[int]
+    condition: Mapped[str] = mapped_column(Text)
+
+
+class UserAchievement(Base):
+    __tablename__ = "user_achievements"
+
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    code: Mapped[str] = mapped_column(
+        ForeignKey("achievements.code", ondelete="CASCADE"), primary_key=True
+    )
+    earned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())

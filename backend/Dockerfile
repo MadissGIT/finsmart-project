@@ -13,6 +13,7 @@ COPY pyproject.toml uv.lock README.md ./
 RUN uv sync --locked --no-dev --no-install-project
 COPY alembic.ini ./
 COPY src ./src
+COPY seeds ./seeds
 
 FROM base AS development
 RUN uv sync --locked --no-install-project

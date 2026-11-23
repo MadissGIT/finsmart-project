@@ -5,15 +5,16 @@ import time
 from collections.abc import Iterator
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import httpx
 import pytest
-from sqlalchemy import select
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncConnection, AsyncSession
 
 from src.app import app
 from src.db.database import get_async_session
-from src.db.models import RefreshSession, Transaction, User
+from src.db.models import Discount, RefreshSession, Transaction, User
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -573,5 +574,298 @@ def test_editing_import_preserves_deduplication(api_postgres) -> None:
         assert repeated["duplicates_skipped"] == 5
         assert repeated["imported_count"] == 0
         assert (await client.get(url)).json()["amount"] == 25
+
+    runner.run(scenario())
+
+
+def test_week3_goals_deposits_and_ownership(api_postgres) -> None:
+    runner, client, _ = api_postgres
+
+    async def scenario() -> None:
+        owner = await register(client, "goal-owner@example.com")
+        outsider = await register(client, "goal-outsider@example.com")
+        owner_headers = {"Authorization": f"Bearer {owner['access_token']}"}
+        outsider_headers = {"Authorization": f"Bearer {outsider['access_token']}"}
+        client.headers.update(owner_headers)
+        base = "/api/v1/goals"
+        today = datetime.now(UTC).date()
+        payload = {
+            "title": "Резерв",
+            "target_amount": 10000,
+            "deadline": (today + timedelta(days=60)).isoformat(),
+            "icon": "shield",
+        }
+        assert (
+            await client.post(base, json={**payload, "deadline": "2000-01-01"})
+        ).status_code == 422
+        response = await client.post(base, json=payload)
+        assert response.status_code == 201, response.text
+        created = response.json()
+        goal_url = f"{base}/{created['id']}"
+        assert created["icon"] == "shield"
+        assert created["exceeds_half_income"] is True
+        assert 4900 < created["monthly_payment_recommended"] < 5200
+        for amount in [0, -1, 10001, "1.001"]:
+            result = await client.post(
+                f"{goal_url}/deposit", json={"amount": amount, "source": "free_money"}
+            )
+            assert result.status_code == 422
+        assert (await client.get(goal_url, headers=outsider_headers)).status_code == 404
+        assert (await client.delete(goal_url, headers=outsider_headers)).status_code == 404
+        assert (await client.get(base, headers=outsider_headers)).json() == []
+        result = await client.post(
+            f"{goal_url}/deposit", json={"amount": 500, "source": "discount"}
+        )
+        assert result.status_code == 200, result.text
+        deposit = result.json()
+        assert deposit["current_amount"] == 500
+        assert deposit["progress_percent"] == 5
+        assert deposit["acceleration_days"] == 3
+        assert deposit["monthly_payment_recommended"] < created["monthly_payment_recommended"]
+        assert (await client.patch(goal_url, json={"target_amount": 499})).status_code == 422
+        assert (await client.patch(goal_url, json={"title": "Резерв на отпуск"})).status_code == 200
+        assert (await client.get(base)).json()[0]["current_amount"] == 500
+        assert (await client.delete(goal_url)).status_code == 204
+        assert (await client.get(base)).json() == []
+
+    runner.run(scenario())
+
+
+def test_week3_dashboard_integrates_activity_goals_and_diagnosis(api_postgres) -> None:
+    runner, client, connection = api_postgres
+
+    async def scenario() -> None:
+        async with AsyncSession(bind=connection) as session:
+            now = await session.scalar(select(func.now()))
+        assert now is not None
+        token = await register(client, "health@example.com")
+        client.headers["Authorization"] = f"Bearer {token['access_token']}"
+        today = now.astimezone(ZoneInfo("Europe/Moscow")).date()
+        url = "/api/v1/analytics/dashboard"
+        empty = (await client.get(url)).json()["diagnostics"]
+        assert empty["indices"] == {"balance": 0, "budget": 0, "goals": 50, "regularity": 0}
+        assert "FD-08" in empty["unavailable"]
+        for category, operation, amount in [
+            (10, "CREDIT", 10000),
+            (1, "DEBIT", 5000),
+            (5, "DEBIT", 3000),
+        ]:
+            response = await client.post(
+                "/api/v1/transactions",
+                json={
+                    **MANUAL_TRANSACTION,
+                    "category_id": category,
+                    "operation_type": operation,
+                    "amount": amount,
+                    "transaction_date": now.isoformat(),
+                },
+            )
+            assert response.status_code == 201, response.text
+        created = await client.post(
+            "/api/v1/goals",
+            json={
+                "title": "Резерв",
+                "target_amount": 1000,
+                "deadline": (today + timedelta(days=30)).isoformat(),
+            },
+        )
+        goal_id = created.json()["id"]
+        assert (
+            await client.post(
+                f"/api/v1/goals/{goal_id}/deposit", json={"amount": 100, "source": "free_money"}
+            )
+        ).status_code == 200
+        response = await client.get(url)
+        assert response.status_code == 200, response.text
+        result = response.json()["diagnostics"]
+        assert result["indices"] == {"balance": 100, "budget": 100, "goals": 100, "regularity": 35}
+        assert result["health_score"] == 90
+        assert "FD-10" in {alert["type"] for alert in result["alerts"]}
+        assert (await client.get(url, params={"from_date": today.isoformat()})).status_code == 422
+        evidence = {
+            "idle_cash": {"since": (today - timedelta(days=60)).isoformat(), "amount": 1000}
+        }
+        verified = await client.post(url, json=evidence)
+        assert verified.status_code == 200
+        assert "FD-08" not in verified.json()["diagnostics"]["unavailable"]
+        assert (await client.post(url, json={"idle_cash": {"amount": 1000}})).status_code == 422
+
+    runner.run(scenario())
+
+
+def test_week3_diagnosis_matches_only_relevant_unexpired_discounts(api_postgres) -> None:
+    runner, client, connection = api_postgres
+
+    async def scenario() -> None:
+        token = await register(client, "diagnosis-discounts@example.com")
+        client.headers["Authorization"] = f"Bearer {token['access_token']}"
+        for category, direction, amount in [(10, "CREDIT", 10000), (1, "DEBIT", 4100)]:
+            response = await client.post(
+                "/api/v1/transactions",
+                json={
+                    **MANUAL_TRANSACTION,
+                    "category_id": category,
+                    "operation_type": direction,
+                    "amount": amount,
+                },
+            )
+            assert response.status_code == 201, response.text
+        as_of = MANUAL_TRANSACTION["transaction_date"][:10]
+        deadline = datetime.fromisoformat(as_of).date()
+        async with AsyncSession(
+            bind=connection, join_transaction_mode="create_savepoint"
+        ) as session:
+            await session.execute(update(Discount).values(valid_until=deadline - timedelta(days=1)))
+            for category, name, expiry in [
+                (1, "Магазин", deadline),
+                (1, "Старая акция", deadline - timedelta(days=1)),
+                (5, "Кофейня", deadline),
+            ]:
+                session.add(
+                    Discount(
+                        category_id=category,
+                        partner_name=name,
+                        title="Скидка 10%",
+                        discount_percent=10,
+                        affiliate_url="https://example.com",
+                        valid_until=expiry,
+                    )
+                )
+            await session.commit()
+        response = await client.post(
+            "/api/v1/analytics/dashboard",
+            json={
+                "from_date": as_of,
+                "to_date": as_of,
+                "idle_cash": {"since": "2026-08-01", "amount": 50000},
+            },
+        )
+        assert response.status_code == 200, response.text
+        alerts = {alert["type"]: alert for alert in response.json()["diagnostics"]["alerts"]}
+        assert "FD-08" in alerts
+        assert [offer["partner_name"] for offer in alerts["FD-06"]["discounts"]] == ["Магазин"]
+
+    runner.run(scenario())
+
+
+def test_week4_catalog_and_persistent_achievements(api_postgres) -> None:
+    runner, client, connection = api_postgres
+
+    async def scenario() -> None:
+        articles = await client.get("/api/v1/articles")
+        assert articles.status_code == 200
+        assert len(articles.json()) == 10
+        first = articles.json()[0]
+        assert first["content_markdown"]
+        assert first["action_checklist"]
+        filtered = await client.get("/api/v1/articles", params={"tags": first["tags"][0]})
+        assert all(first["tags"][0] in row["tags"] for row in filtered.json())
+        assert (await client.get("/api/v1/articles/art-01")).json() == first
+        assert (await client.get("/api/v1/articles/missing")).status_code == 404
+        assert (await client.get("/api/v1/articles", params={"tags": "missing"})).json() == []
+        offers = (await client.get("/api/v1/discounts")).json()
+        assert offers
+        assert all(row["is_demo"] for row in offers)
+        filtered_offers = (await client.get("/api/v1/discounts?category_id=1")).json()
+        assert all(row["category_id"] == 1 for row in filtered_offers)
+        assert (await client.get("/api/v1/achievements")).status_code == 401
+        tokens = await register(client, "badges@example.com")
+        client.headers["Authorization"] = f"Bearer {tokens['access_token']}"
+        initial = (await client.get("/api/v1/achievements")).json()
+        assert len(initial["items"]) == 10
+        assert initial["reward_points"] == 0
+        content = (FIXTURES / "tbank.csv").read_bytes()
+        for _ in range(2):
+            result = await client.post(
+                "/api/v1/transactions/import-statement", files={"file": ("a.csv", content)}
+            )
+            assert result.status_code == 200, result.text
+        goal = await client.post(
+            "/api/v1/goals",
+            json={"title": "Резерв", "target_amount": 100, "deadline": "2099-12-31"},
+        )
+        assert goal.status_code == 201, goal.text
+        goal_id = goal.json()["id"]
+        deposited = await client.post(
+            f"/api/v1/goals/{goal_id}/deposit", json={"amount": 100, "source": "free_money"}
+        )
+        assert deposited.status_code == 200, deposited.text
+        earned = (await client.get("/api/v1/achievements")).json()
+        assert earned["reward_points"] == 55
+        assert {row["code"] for row in earned["items"] if row["unlocked"]} == {
+            "BADGE_FIRST_IMPORT",
+            "BADGE_PIGGY_CREATED",
+            "BADGE_FIRST_DEPOSIT",
+            "BADGE_GOAL_REACHED",
+        }
+        assert (await client.delete(f"/api/v1/goals/{goal_id}")).status_code == 204
+        assert (await client.get("/api/v1/achievements")).json() == earned
+        other = await register(client, "no-badges@example.com")
+        result = await client.get(
+            "/api/v1/achievements", headers={"Authorization": f"Bearer {other['access_token']}"}
+        )
+        assert result.json()["reward_points"] == 0
+
+    runner.run(scenario())
+
+
+def test_release_filters_trend_and_recommendations(api_postgres) -> None:
+    runner, client, _ = api_postgres
+
+    async def scenario() -> None:
+        token = await register(client, "release@example.com")
+        client.headers["Authorization"] = f"Bearer {token['access_token']}"
+        profile = await client.patch("/api/v1/users/me", json={"full_name": "  Новое имя  "})
+        assert profile.status_code == 200, profile.text
+        assert (await client.get("/api/v1/users/me")).json()["full_name"] == "Новое имя"
+        today = datetime.now(ZoneInfo("Europe/Moscow")).date()
+        for category, amount in [(1, 500), (2, 400), (5, 300), (7, 200)]:
+            created = await client.post(
+                "/api/v1/transactions",
+                json={
+                    **MANUAL_TRANSACTION,
+                    "category_id": category,
+                    "amount": amount,
+                    "transaction_date": f"{today}T12:00:00+03:00",
+                    "merchant_name": "Касса 20%",
+                },
+            )
+            assert created.status_code == 201, created.text
+        endpoint = "/api/v1/transactions"
+        filtered = await client.get(
+            endpoint,
+            params={
+                "category_id": 2,
+                "operation_type": "DEBIT",
+                "q": "КАССА 20%",
+            },
+        )
+        assert [row["amount"] for row in filtered.json()] == [400]
+        assert (await client.get(endpoint, params={"q": "_"})).json() == []
+        assert (await client.get(endpoint, params={"operation_type": "CREDIT"})).json() == []
+        trend = await client.get(
+            "/api/v1/analytics/expenses/trend",
+            params={
+                "from_date": str(today - timedelta(days=1)),
+                "to_date": str(today),
+            },
+        )
+        assert trend.status_code == 200, trend.text
+        assert [point["amount"] for point in trend.json()] == [0, 1400]
+        offers = await client.get("/api/v1/discounts/recommended")
+        assert offers.status_code == 200, offers.text
+        assert offers.json()["recommendation_basis"] == [
+            "Супермаркеты",
+            "Транспорт и авто",
+            "Кафе и рестораны",
+        ]
+        assert {item["category_id"] for item in offers.json()["items"]} <= {1, 2, 5}
+        outsider = await register(client, "release-foreign@example.com")
+        headers = {"Authorization": f"Bearer {outsider['access_token']}"}
+        assert (await client.get(endpoint, headers=headers)).json() == []
+        assert (await client.get("/api/v1/discounts/recommended", headers=headers)).json() == {
+            "recommendation_basis": [],
+            "items": [],
+        }
 
     runner.run(scenario())

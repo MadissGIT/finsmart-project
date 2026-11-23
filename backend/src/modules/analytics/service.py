@@ -11,6 +11,7 @@ from src.modules.analytics.schemas import (
     BudgetDistribution,
     CategoryExpense,
     DashboardSummary,
+    ExpensePoint,
     Period,
 )
 
@@ -112,3 +113,25 @@ class AnalyticsService:
             unallocated_expense=groups[BudgetGroup.OTHER] + groups[BudgetGroup.INCOME],
             budget_score=score.quantize(CENT),
         )
+
+    async def expense_trend(
+        self, user_id: UUID, from_date: date, to_date: date, weekly: bool
+    ) -> list[ExpensePoint]:
+        days = (to_date - from_date).days + 1
+        if not 1 <= days <= 367 or from_date == date.min or to_date == date.max:
+            raise ValueError("Период должен составлять от одного до 367 дней")
+        start = datetime.combine(from_date, datetime.min.time(), self._financial_timezone)
+        end = datetime.combine(
+            to_date + timedelta(days=1), datetime.min.time(), self._financial_timezone
+        )
+        expenses = dict(
+            await self._analytics_repository.daily_expenses(
+                user_id=user_id, start=start, end=end, timezone=self._financial_timezone.key
+            )
+        )
+        points: dict[date, Decimal] = {}
+        for offset in range(days):
+            day = from_date + timedelta(days=offset)
+            bucket = day - timedelta(days=day.weekday()) if weekly else day
+            points[bucket] = points.get(bucket, Decimal(0)) + expenses.get(day, Decimal(0))
+        return [ExpensePoint(date=day, amount=amount) for day, amount in points.items()]

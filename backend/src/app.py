@@ -1,3 +1,4 @@
+import logging
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
 
@@ -5,12 +6,17 @@ from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from sqlalchemy.exc import OperationalError
+from sqlalchemy.exc import TimeoutError as DatabaseTimeout
 
 from src.core.settings import get_auth_settings, get_project_settings
 from src.db.database import get_async_engine
+from src.modules.goals.service import GoalNotFoundError, InvalidGoalError
 from src.routes.analytics.api import router as analytics_router
 from src.routes.auth.api import router as auth_router
+from src.routes.catalog.api import router as catalog_router
 from src.routes.categories.api import router as categories_router
+from src.routes.goals.api import router as goals_router
 from src.routes.health import router as health_router
 from src.routes.transactions.api import router as transactions_router
 
@@ -41,6 +47,32 @@ async def validation_error(_request: Request, exception: RequestValidationError)
     )
 
 
+@app.exception_handler(GoalNotFoundError)
+async def goal_not_found(_request: Request, exception: GoalNotFoundError) -> JSONResponse:
+    return JSONResponse(status_code=404, content={"detail": str(exception)})
+
+
+@app.exception_handler(InvalidGoalError)
+async def invalid_goal(_request: Request, exception: InvalidGoalError) -> JSONResponse:
+    return JSONResponse(status_code=422, content={"detail": str(exception)})
+
+
+logger = logging.getLogger("uvicorn.error")
+
+
+@app.exception_handler(OperationalError)
+@app.exception_handler(DatabaseTimeout)
+async def database_unavailable(request: Request, exception: Exception) -> JSONResponse:
+    route = request.scope.get("route")
+    logger.warning(
+        "Database unavailable: method=%s route=%s error=%s",
+        request.method,
+        getattr(route, "path", "<unknown>"),
+        type(exception).__name__,
+    )
+    return JSONResponse(status_code=503, content={"detail": "База данных временно недоступна"})
+
+
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_project_settings().cors_origins,
@@ -52,3 +84,5 @@ app.include_router(categories_router, prefix="/api/v1")
 app.include_router(auth_router, prefix="/api/v1")
 app.include_router(transactions_router, prefix="/api/v1")
 app.include_router(analytics_router, prefix="/api/v1")
+app.include_router(goals_router, prefix="/api/v1")
+app.include_router(catalog_router, prefix="/api/v1")

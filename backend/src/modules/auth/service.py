@@ -148,3 +148,8 @@ class AuthService:
         return TokenResponse(
             user_id=user.id, email=user.email, access_token=access, refresh_token=refresh
         )
+
+    async def update_profile(self, user: User, full_name: str) -> User:
+        user.full_name = full_name
+        await self._auth_repository.save_user(user)
+        return user
