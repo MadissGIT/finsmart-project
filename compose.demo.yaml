@@ -1,0 +1,8 @@
+services:
+  web:
+    build: ./frontend
+    depends_on:
+      api:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:${FINSMART_WEB_PORT:-5173}:8080"
