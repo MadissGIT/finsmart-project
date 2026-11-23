@@ -1,4 +1,6 @@
-import { Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
+import { useId, useState } from 'react';
+import type { ReactNode } from 'react';
+import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import type { CategoryExpense } from '@/entities/analytics/model/types';
 import { formatMoney } from '@/shared/lib/format';
 import { toCategoryChartData } from './model/category-chart';
@@ -6,38 +8,49 @@ import { toCategoryChartData } from './model/category-chart';
 interface Props {
   categories: CategoryExpense[];
   total: number;
+  compact?: boolean;
+  title?: string;
+  emptyText?: string;
+  renderCategory?: (category: CategoryExpense) => ReactNode;
 }
 
-export function ExpenseChart({ categories, total }: Props) {
+export function ExpenseChart({ categories, total, compact = false, title = 'Расходы по категориям', emptyText = 'За этот период расходов пока нет.', renderCategory }: Props) {
+  const id = useId();
+  const [selectedId, setSelectedId] = useState<string | null>(null);
   const data = toCategoryChartData(categories, total);
+  const selected = data.find((item) => item.id === selectedId);
+  const selectedCategory = selected && categories.find((category) => 'category-' + category.category_id === selected.id);
+  const percent = (value: number) => (total > 0 ? value / total * 100 : 0).toLocaleString('ru-RU', { maximumFractionDigits: 1 });
+  function select(key: string) { setSelectedId((current) => current === key ? null : key); }
 
-  return (
-    <section className="panel min-w-0" aria-labelledby="expenses-title">
-      <h2 id="expenses-title" className="font-semibold">Расходы по категориям</h2>
-      {total > 0 && data.length > 0 ? (
-        <>
-          <div className="relative my-3 h-60 min-w-0" aria-hidden="true">
-            <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-              <PieChart accessibilityLayer={false}>
-                <Pie data={data} dataKey="value" nameKey="name" innerRadius={70} outerRadius={96} paddingAngle={3} stroke="none" isAnimationActive={false} />
-                <Tooltip formatter={(value) => formatMoney(Number(value))} />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-xs text-stone-500">Всего расходов</span>
-              <span className="mt-1 text-lg font-semibold tabular-nums">{formatMoney(total)}</span>
-            </div>
-          </div>
-          <ul className="space-y-3 text-sm" aria-label="Суммы расходов по категориям">
-            {data.map((item) => (
-              <li key={item.name} className="flex items-center justify-between gap-3">
-                <span className="flex min-w-0 items-center gap-2 text-stone-600"><span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: item.fill }} />{item.name}</span>
-                <span className="shrink-0 font-medium tabular-nums">{formatMoney(item.value)}</span>
-              </li>
-            ))}
-          </ul>
-        </>
-      ) : <p className="py-16 text-center text-sm text-stone-500">За этот период расходов пока нет.</p>}
-    </section>
-  );
+  return <section className="panel min-w-0" aria-labelledby={id}>
+    <h2 id={id} className="font-semibold">{title}</h2>
+    {total > 0 && data.length > 0 ? <>
+      <div className={compact ? 'expense-compact' : ''}>
+        <div className="expense-chart" aria-hidden="true">
+          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
+            <PieChart accessibilityLayer={false}>
+              <Pie data={data} dataKey="value" nameKey="name" innerRadius={compact ? 43 : 70} outerRadius={compact ? 58 : 96} paddingAngle={compact ? 1 : 3} stroke="none" isAnimationActive={false} onClick={(_, index) => select(data[index].id)}>
+                {data.map((item) => <Cell key={item.id} fill={item.fill} fillOpacity={selected && selected.id !== item.id ? 0.3 : 1} cursor="pointer" />)}
+              </Pie>
+              <Tooltip formatter={(value) => formatMoney(Number(value))} />
+            </PieChart>
+          </ResponsiveContainer>
+          <div className="expense-total"><strong>{formatMoney(selected?.value ?? total)}</strong><span>{selected?.name ?? 'всего расходов'}</span></div>
+        </div>
+        <ul className="expense-legend" aria-label="Суммы расходов по категориям">
+          {data.map((item) => <li key={item.id}>
+            <button type="button" className="expense-category" aria-pressed={selected?.id === item.id} onClick={() => select(item.id)}>
+              <span className="expense-name"><span className="expense-dot" style={{ background: item.fill }} />{item.name}</span>
+              <span className="expense-amount">{formatMoney(item.value)}</span><span className="expense-percent">{percent(item.value)}%</span>
+            </button>
+          </li>)}
+        </ul>
+      </div>
+      <div className="expense-selection"><p role="status">{selected ? selected.name + ': ' + formatMoney(selected.value) + ' · ' + percent(selected.value) + '%' : 'Выберите категорию на диаграмме или в списке.'}</p>
+        {selected ? <button type="button" className="inline-link" onClick={() => setSelectedId(null)}>Показать все расходы</button> : null}
+      </div>
+      {selectedCategory && renderCategory?.(selectedCategory)}
+    </> : <div className="expense-empty"><div className="expense-empty-ring" aria-hidden="true" /><p>{emptyText}</p></div>}
+  </section>;
 }

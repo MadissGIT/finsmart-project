@@ -1,9 +1,9 @@
-import { ArrowLeftRight, ChartPie, LayoutDashboard, Target, UserRound } from 'lucide-react';
+import { CreditCard, House, MoreHorizontal, PiggyBank, TicketPercent } from 'lucide-react';
 
 export const navigation = [
-  { to: '/', label: 'Обзор', icon: LayoutDashboard },
-  { to: '/transactions', label: 'Операции', icon: ArrowLeftRight },
-  { to: '/analytics', label: 'Аналитика', icon: ChartPie },
-  { to: '/goals', label: 'Цели', icon: Target },
-  { to: '/auth', label: 'Профиль', icon: UserRound },
+  { to: '/', label: 'Обзор', icon: House },
+  { to: '/transactions', label: 'Транзакции', icon: CreditCard },
+  { to: '/goals', label: 'Копилки', icon: PiggyBank },
+  { to: '/discounts', label: 'Скидки', icon: TicketPercent },
+  { to: '/more', label: 'Ещё', icon: MoreHorizontal },
 ];

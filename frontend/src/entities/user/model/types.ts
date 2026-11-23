@@ -19,7 +19,5 @@ export interface UserProfile {
   id: string;
   email: string;
   full_name: string;
-  health_score: number;
-  financial_persona: string;
   created_at: string;
 }
