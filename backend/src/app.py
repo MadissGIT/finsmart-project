@@ -18,6 +18,7 @@ from src.routes.catalog.api import router as catalog_router
 from src.routes.categories.api import router as categories_router
 from src.routes.goals.api import router as goals_router
 from src.routes.health import router as health_router
+from src.routes.limits.api import router as limits_router
 from src.routes.transactions.api import router as transactions_router
 
 
@@ -86,3 +87,4 @@ app.include_router(transactions_router, prefix="/api/v1")
 app.include_router(analytics_router, prefix="/api/v1")
 app.include_router(goals_router, prefix="/api/v1")
 app.include_router(catalog_router, prefix="/api/v1")
+app.include_router(limits_router, prefix="/api/v1")

@@ -1,3 +1,5 @@
+import { CategoryLimits } from './CategoryLimits';
+import { BudgetExport } from './BudgetExport';
 import { PeriodFilter } from '@/features/dashboard/PeriodFilter';
 import { useDashboard } from '@/features/dashboard/model/useDashboard';
 import { CategoryOffers } from '@/features/discounts/ui/CategoryOffers';
@@ -31,6 +33,8 @@ export default function AnalyticsPage() {
     </div> : null}
     {hasOperations && data?.deficit_financing ? <p className="budget-context-note">Доходы не учтены: база бюджета — расходы за период.</p> : null}
     {data && data.unallocated_expense > 0 ? <p className="budget-context-note">Вне групп 50/30/20: {formatMoney(data.unallocated_expense)}. Эти расходы включены в общую сумму и диаграмму.</p> : null}
+    {data && status === 'ready' && <BudgetExport budget={data} />}
+    {canLoadAnalytics && <CategoryLimits key={user?.id} />}
     {canLoadAnalytics && (
       <div hidden={status === 'loading'} className="min-w-0">
         <ExpenseTrend key={user?.id + ':' + getAuthGeneration()} period={selection.range} />

@@ -5,6 +5,7 @@ export interface LoginRequest {
 
 export interface RegisterRequest extends LoginRequest {
   full_name: string;
+  birth_date?: string;
 }
 
 export interface AuthResponse {
@@ -20,4 +21,5 @@ export interface UserProfile {
   email: string;
   full_name: string;
   created_at: string;
+  birth_date?: string | null;
 }

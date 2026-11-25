@@ -31,10 +31,12 @@ test('регистрация, импорт, сохранение входа и �
   await page.getByRole('button', { name: 'Продолжить', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Немного о себе', exact: true })).toBeVisible();
   await page.getByLabel('Имя', { exact: true }).fill('Максим');
-  await expect(page.getByLabel('Дата рождения', { exact: true })).toBeDisabled();
+  await page.getByLabel('Дата рождения', { exact: true }).fill('2000-02-29');
   await page.getByLabel('Цель использования', { exact: true }).selectOption('saving');
   await page.getByLabel('Уровень дохода (в месяц)', { exact: true }).selectOption('30-60');
+  const registration = page.waitForRequest((request) => request.url().endsWith('/auth/register') && request.method() === 'POST');
   await page.getByRole('button', { name: 'Создать аккаунт', exact: true }).click();
+  expect((await registration).postDataJSON()).toMatchObject({ birth_date: '2000-02-29' });
   await expect(page.getByRole('heading', { name: 'Регистрация успешна!', exact: true })).toBeVisible();
   expect(api.authRequests).toContain('/auth/register');
   await page.getByRole('link', { name: 'Начать', exact: true }).click();

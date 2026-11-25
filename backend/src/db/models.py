@@ -64,6 +64,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(254), unique=True)
     hashed_password: Mapped[str] = mapped_column(String(255))
     full_name: Mapped[str] = mapped_column(String(200))
+    birth_date: Mapped[date | None]
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
@@ -226,3 +227,18 @@ class UserAchievement(Base):
         ForeignKey("achievements.code", ondelete="CASCADE"), primary_key=True
     )
     earned_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class CategoryLimit(Base):
+    __tablename__ = "category_limits"
+    __table_args__ = (
+        CheckConstraint("amount BETWEEN 0.01 AND 999999999999.99", name="positive_amount"),
+    )
+
+    user_id: Mapped[UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+    category_id: Mapped[int] = mapped_column(
+        ForeignKey("categories.id", ondelete="CASCADE"), primary_key=True
+    )
+    amount: Mapped[Decimal] = mapped_column(Numeric(14, 2))
