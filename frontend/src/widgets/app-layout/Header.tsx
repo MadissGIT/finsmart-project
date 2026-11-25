@@ -13,7 +13,7 @@ export function Header() {
       </Link>
       <div className="header-actions">
         <button className="icon-button" type="button" aria-label="Уведомления" onClick={() => setNotifications(true)}><Bell size={20} aria-hidden="true" /></button>
-        <Link className="icon-button" to="/auth" aria-label="Профиль"><CircleUserRound size={23} aria-hidden="true" /></Link>
+        <Link className="icon-button" to="/more/profile" aria-label="Профиль"><CircleUserRound size={23} aria-hidden="true" /></Link>
       </div>
       <Modal open={notifications} title="Уведомления" onClose={() => setNotifications(false)}><p>Новых уведомлений пока нет.</p></Modal>
     </header>

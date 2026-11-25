@@ -16,6 +16,7 @@ import { AboutPage, FaqPage, SupportPage } from '@/pages/more/HelpPages';
 import { NotFoundPage } from '@/pages/not-found/NotFoundPage';
 import { RouteEffects } from './RouteEffects';
 
+const ProfileRoutes = lazy(() => import('@/pages/profile/ProfileRoutes'));
 const AnalyticsPage = lazy(() => import('@/pages/analytics/AnalyticsPage'));
 
 const TransactionsPage = lazy(() => import('@/pages/transactions/TransactionsPage').then((module) => ({ default: module.TransactionsPage })));
@@ -52,6 +53,7 @@ export function App() {
               <Route path="more/faq" element={<FaqPage />} />
               <Route path="more/support" element={<SupportPage />} />
               <Route path="more/about" element={<AboutPage />} />
+              <Route path="more/profile/*" element={<ProfileRoutes />} />
               <Route path="auth" element={<AuthPage />} />
               <Route path="*" element={<NotFoundPage />} />
             </Route>

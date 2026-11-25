@@ -5,7 +5,8 @@ test('гость не запрашивает чужую аналитику и н
   const api = await mockAccount(page);
   await page.goto('/');
   await expect(page.getByRole('link', { name: 'Войти', exact: true })).toBeVisible();
-  await expect(page.locator('.dashboard-summary dd')).toHaveText(['—', '—', '—']);
+  await expect(page.locator('.dashboard-summary dd')).toHaveText(['—', '—']);
+  await expect(page.locator('.dashboard-summary dt')).toHaveText(['Баланс', 'Расходы']);
   expect(api.budgetRequests).toEqual([]);
   expect(api.diagnosisRequests).toEqual([]);
   await expect(page.getByRole('region', { name: 'Финансовое здоровье' })).toHaveCount(0);
@@ -15,17 +16,18 @@ test('свой период передаётся серверу и сохран�
   const api = await mockAccount(page);
   await signIn(page);
   await setPeriod(page, '2026-10-01', '2026-10-31');
-  await expect(page.locator('.dashboard-summary dd')).toHaveText([/100\s*000\s*₽/, /30\s*000\s*₽/, /70\s*000\s*₽/]);
+  await expect(page.locator('.dashboard-summary dd')).toHaveText([/70\s*000\s*₽/, /30\s*000\s*₽/]);
   expect(api.budgetRequests.at(-1)).toContain('from_date=2026-10-01&to_date=2026-10-31');
   await expect(page).toHaveURL(/period=custom&from_date=2026-10-01&to_date=2026-10-31/);
   await page.reload();
-  await expect(page.locator('.dashboard-summary dd')).toHaveText([/100\s*000\s*₽/, /30\s*000\s*₽/, /70\s*000\s*₽/]);
+  await expect(page.locator('.dashboard-summary dd')).toHaveText([/70\s*000\s*₽/, /30\s*000\s*₽/]);
   await setPeriod(page, '2026-09-01', '2026-09-30');
-  await expect(page.locator('.dashboard-summary dd')).toHaveText([/50\s*000\s*₽/, /7\s*000\s*₽/, /43\s*000\s*₽/]);
+  await expect(page.locator('.dashboard-summary dd')).toHaveText([/43\s*000\s*₽/, /7\s*000\s*₽/]);
   await page.goBack();
-  await expect(page.locator('.dashboard-summary dd')).toHaveText([/100\s*000\s*₽/, /30\s*000\s*₽/, /70\s*000\s*₽/]);
+  await expect(page.locator('.dashboard-summary dd')).toHaveText([/70\s*000\s*₽/, /30\s*000\s*₽/]);
   await page.getByRole('link', { name: 'Бюджет 50 / 30 / 20 — открыть аналитику', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Аналитика', exact: true })).toBeVisible();
+  await expect(page.locator('.dashboard-summary dt')).toHaveText(['Доходы', 'Расходы', 'Баланс']);
   await expect(page.getByLabel('С', { exact: true })).toHaveValue('2026-10-01');
   await expect(page.getByRole('progressbar', { name: 'Необходимое', exact: true })).toHaveAttribute('value', '40');
   await expect(page.getByRole('progressbar', { name: 'Сбережения', exact: true })).toHaveAttribute('value', '100');
@@ -89,7 +91,7 @@ test('ошибка сервера скрывает устаревшие сумм
   await page.route('**/api/v1/analytics/budget?*', handler);
   await page.getByRole('button', { name: 'Обновить финансовый обзор', exact: true }).click();
   await expect(page.getByRole('alert')).toContainText('не готов');
-  await expect(page.locator('.dashboard-summary dd')).toHaveText(['—', '—', '—']);
+  await expect(page.locator('.dashboard-summary dd')).toHaveText(['—', '—']);
   await page.unroute('**/api/v1/analytics/budget?*', handler);
   await page.getByRole('button', { name: 'Повторить загрузку', exact: true }).click();
   await expect(page.locator('.recharts-pie')).toBeVisible();
@@ -100,11 +102,18 @@ test('финансовый диагноз можно повторно загру
   await signIn(page);
   const handler = (route: import('@playwright/test').Route) => route.fulfill({ status: 503 });
   await page.route('**/api/v1/analytics/dashboard?*', handler);
+  await page.route('**/api/v1/analytics/budget?*', (route) => {
+    const params = new URL(route.request().url()).searchParams;
+    const budget = budgetFixture(params.get('from_date')!, params.get('to_date')!);
+    return route.fulfill({ json: { ...budget, budget_score: 37.35 } });
+  });
   await page.getByRole('button', { name: 'Обновить финансовый обзор' }).click();
 
   const diagnosis = page.getByRole('region', { name: 'Финансовое здоровье' });
   await expect(diagnosis.getByRole('alert')).toContainText('не готов');
-  await expect(page.getByRole('progressbar', { name: 'Индекс соблюдения бюджета' })).toBeVisible();
+  const budgetScore = page.getByRole('progressbar', { name: 'Индекс соблюдения бюджета' });
+  await expect(budgetScore).toHaveAttribute('aria-valuenow', '37');
+  await expect(budgetScore.locator('strong')).toHaveText('37');
   await expect(diagnosis.getByRole('meter')).toHaveCount(0);
 
   await page.unroute('**/api/v1/analytics/dashboard?*', handler);
@@ -124,11 +133,11 @@ test('поздний ответ предыдущего периода не ме�
   });
   await setPeriod(page, '2026-10-01', '2026-10-31');
   await expect.poll(() => !!oldRoute).toBe(true);
-  await expect(page.locator('.dashboard-summary dd')).toHaveText(['…', '…', '…']);
+  await expect(page.locator('.dashboard-summary dd')).toHaveText(['…', '…']);
   await setPeriod(page, '2026-09-01', '2026-09-30');
-  await expect(page.locator('.dashboard-summary dd')).toHaveText([/50\s*000\s*₽/, /7\s*000\s*₽/, /43\s*000\s*₽/]);
+  await expect(page.locator('.dashboard-summary dd')).toHaveText([/43\s*000\s*₽/, /7\s*000\s*₽/]);
   await oldRoute!.fulfill({ json: budgetFixture('2026-10-01', '2026-10-31') }).catch(() => { /* Отменённый браузером запрос уже закрыт. */ });
-  await expect(page.locator('.dashboard-summary dd')).toHaveText([/50\s*000\s*₽/, /7\s*000\s*₽/, /43\s*000\s*₽/]);
+  await expect(page.locator('.dashboard-summary dd')).toHaveText([/43\s*000\s*₽/, /7\s*000\s*₽/]);
 });
 
 test('истёкший access обновляется через refresh и сохраняет вход', async ({ page }) => {
@@ -154,7 +163,7 @@ test('недействительная refresh-сессия завершает �
   });
   await page.reload();
   await expect(page.getByRole('link', { name: 'Войти', exact: true })).toBeVisible();
-  await expect(page.locator('.dashboard-summary dd')).toHaveText(['—', '—', '—']);
+  await expect(page.locator('.dashboard-summary dd')).toHaveText(['—', '—']);
   expect(await page.evaluate(() => sessionStorage.getItem('finsmart.auth.v1'))).toBeNull();
 });
 

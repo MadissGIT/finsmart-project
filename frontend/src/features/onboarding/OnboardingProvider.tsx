@@ -21,7 +21,12 @@ export function OnboardingProvider({ children }: PropsWithChildren) {
       session,
       registrationDraft, setRegistrationDraft,
       updateSession: (patch) => setSession((current) => ({ ...current, ...patch })),
-      resetSession: () => { setSession({ ...emptySession }); setRegistrationDraft(null); },
+      resetSession: () => {
+        try { window.sessionStorage.removeItem(SESSION_KEY); }
+        catch { /* Код ниже очищает состояние даже без sessionStorage. */ }
+        setSession({ ...emptySession });
+        setRegistrationDraft(null);
+      },
     }}>
       {children}
     </OnboardingContext.Provider>

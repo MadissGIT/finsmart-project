@@ -35,7 +35,7 @@ test('дашборд показывает расчёт и скидки с API з
   expect(response.status()).toBe(200);
   const data: DiagnosisResponse = await response.json();
   expect(data.summary.total_income).toBe(10000);
-  await expect(page.locator('.dashboard-summary dd').first()).toHaveText(/14\s*000\s*₽/);
+  await expect(page.locator('.dashboard-summary dd').first()).toHaveText(/7\s*500\s*₽/);
 
   const panel = page.getByRole('region', { name: 'Финансовое здоровье' });
   await expect(panel.getByRole('meter', { name: 'Рейтинг финансового здоровья' })).toHaveAttribute('aria-valuenow', String(data.diagnostics.health_score));

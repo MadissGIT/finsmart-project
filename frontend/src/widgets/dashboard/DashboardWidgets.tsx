@@ -10,18 +10,20 @@ import { useApiQuery } from '@/shared/api/useApiQuery';
 import { formatMoney } from '@/shared/lib/format';
 
 export function BudgetScore({ score, onHelp }: { score: number | null; onHelp: () => void }) {
+  const displayScore = score === null ? null : Math.round(score);
+
   return (
     <section className="panel" aria-label="Соблюдение бюджета">
       <h2>Соблюдение бюджета</h2>
       <div className="health-content">
-        {score === null ? (
+        {displayScore === null ? (
           <div className="health-ring health-ring-empty" aria-hidden="true"><span className="health-ring-inner"><strong>—</strong><small>/100</small></span></div>
         ) : (
-          <div className="health-ring" role="progressbar" aria-label="Индекс соблюдения бюджета" aria-valuenow={score} aria-valuemin={0} aria-valuemax={100} style={{ background: 'conic-gradient(#65ae9c ' + score + '%, #d9e9ed 0)' }}>
-            <span className="health-ring-inner"><strong>{score}</strong><small>/100</small></span>
+          <div className="health-ring" role="progressbar" aria-label="Индекс соблюдения бюджета" aria-valuenow={displayScore} aria-valuemin={0} aria-valuemax={100} style={{ background: 'conic-gradient(#65ae9c ' + displayScore + '%, #d9e9ed 0)' }}>
+            <span className="health-ring-inner"><strong>{displayScore}</strong><small>/100</small></span>
           </div>
         )}
-        <div><p className="health-label">{score === null ? 'Недостаточно данных' : 'Индекс бюджета'} <Info className="inline" size={10} aria-hidden="true" /></p><button type="button" className="health-tip" onClick={onHelp}>О рейтинге</button></div>
+        <div><p className="health-label">{displayScore === null ? 'Недостаточно данных' : 'Индекс бюджета'} <Info className="inline" size={10} aria-hidden="true" /></p><button type="button" className="health-tip" onClick={onHelp}>О рейтинге</button></div>
       </div>
     </section>
   );

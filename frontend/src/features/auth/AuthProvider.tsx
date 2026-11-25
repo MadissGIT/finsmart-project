@@ -38,7 +38,11 @@ export function AuthProvider({ children }: PropsWithChildren) {
   return <AuthContext.Provider value={{
     status, user, error,
     signIn: async (fields) => setAuthTokens(await loginUser(fields)),
-    createAccount: async (fields) => setAuthTokens(await registerUser(fields)),
+    createAccount: async (fields) => {
+      const registered = await registerUser(fields);
+      setAuthTokens(registered);
+      return registered.user_id;
+    },
     signOut: () => setAuthTokens(null),
     retryProfile: () => setAttempt((value) => value + 1),
   }}>{children}</AuthContext.Provider>;

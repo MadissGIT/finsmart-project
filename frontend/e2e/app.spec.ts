@@ -55,7 +55,7 @@ test('пустой аккаунт получает нулевые показат
   await mockAccount(page, { empty: true });
   await signIn(page);
   await expect(page.getByRole('heading', { name: 'Структура расходов', exact: true })).toBeVisible();
-  await expect(page.locator('.dashboard-summary dd')).toHaveText([/0\s*₽/, /0\s*₽/, /0\s*₽/]);
+  await expect(page.locator('.dashboard-summary dd')).toHaveText([/0\s*₽/, /0\s*₽/]);
   await expect(page.getByText('За этот период расходов пока нет.', { exact: true })).toBeVisible();
   await expect(page.getByText('Недостаточно данных', { exact: true })).toBeVisible();
   await expect(page.getByText('Целей пока нет', { exact: true })).toBeVisible();
@@ -63,7 +63,7 @@ test('пустой аккаунт получает нулевые показат
   await expect(page.getByRole('progressbar')).toHaveCount(0);
   await expect(page.getByRole('list', { name: 'Суммы расходов по категориям' })).toHaveCount(0);
   await page.reload();
-  await expect(page.locator('.dashboard-summary dd')).toHaveText([/0\s*₽/, /0\s*₽/, /0\s*₽/]);
+  await expect(page.locator('.dashboard-summary dd')).toHaveText([/0\s*₽/, /0\s*₽/]);
   await page.getByRole('button', { name: 'О рейтинге', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await expect(page.getByRole('dialog')).toContainText('Пока нет операций для расчёта');

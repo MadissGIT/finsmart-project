@@ -15,7 +15,7 @@ export function Sidebar() {
       </nav>
       <nav aria-label="Дополнительная навигация" className="mt-5 space-y-1 border-t border-slate-100 pt-5">
         <NavLink to="/analytics" className={linkClass}><ChartPie size={20} aria-hidden="true" />Аналитика</NavLink>
-        <NavLink to="/auth" className={linkClass}><CircleUserRound size={20} aria-hidden="true" />Профиль</NavLink>
+        <NavLink to="/more/profile" className={linkClass}><CircleUserRound size={20} aria-hidden="true" />Профиль</NavLink>
       </nav>
       <p className="sidebar-note">Умные деньги — большие цели</p>
     </aside>

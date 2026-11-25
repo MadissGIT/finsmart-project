@@ -20,7 +20,7 @@ export default function AnalyticsPage() {
     <PageHeading title="Аналитика" description="Структура расходов и распределение бюджета за выбранный период." />
     <PeriodFilter selection={selection} onChange={dashboard.setSearch} />
     <DashboardNotice status={status} error={dashboard.error} reload={dashboard.reload} />
-    <SummaryCards summary={data?.summary} loading={status === 'loading'} />
+    <SummaryCards summary={data?.summary} loading={status === 'loading'} detailed />
     {status === 'ready' || status === 'anonymous' ? <div className="grid items-start gap-5 xl:grid-cols-2">
       <ExpenseChart
         key={selection.range.from + selection.range.to}

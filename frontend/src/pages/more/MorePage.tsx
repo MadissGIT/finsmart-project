@@ -14,7 +14,7 @@ export function MorePage() {
   return (
     <div className="more-page more-home-page">
       <MoreHeading title="Ещё" action={
-        <Link to="/auth" className="icon-button" aria-label="Профиль">
+        <Link to="/more/profile" className="icon-button" aria-label="Профиль">
           <Settings size={23} strokeWidth={1.7} aria-hidden="true" />
         </Link>
       } />

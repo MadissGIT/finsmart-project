@@ -6,6 +6,9 @@ const titles: Record<string, string> = {
   '/register/profile': 'Немного о себе', '/register/success': 'Регистрация успешна',
   '/setup': 'Первичная настройка', '/transactions': 'Операции', '/analytics': 'Аналитика',
   '/goals': 'Финансовые цели', '/auth': 'Профиль', '/discounts': 'Скидки', '/more': 'Ещё',
+  '/more/profile': 'Профиль', '/more/profile/settings': 'Настройки профиля',
+  '/more/profile/achievements': 'Достижения', '/more/profile/achievements/statistics': 'Статистика достижений',
+  '/more/profile/challenges': 'Челленджи',
   '/more/knowledge': 'База знаний', '/more/faq': 'Вопрос-ответ',
   '/more/support': 'Поддержка', '/more/about': 'О приложении',
 };

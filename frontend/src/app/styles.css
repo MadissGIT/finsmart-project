@@ -217,7 +217,7 @@
 /* Данные за выбранный период поступают из API. */
 .dashboard-heading { display: flex; min-height: 40px; align-items: center; justify-content: space-between; gap: 12px; }
 .dashboard-heading-actions { display: flex; align-items: center; gap: 4px; }
-.dashboard-summary > .summary-tile:last-child { grid-column: 1 / -1; }
+.dashboard-summary-detailed > .summary-tile:last-child { grid-column: 1 / -1; }
 .summary-tile > div { min-width: 0; }
 .summary-tile dd { white-space: normal; overflow-wrap: anywhere; font-size: clamp(16px, 4vw, 22px); }
 .summary-tile small { white-space: normal; line-height: 1.5; }
@@ -261,8 +261,8 @@
   .expense-compact .expense-chart { width: 160px; justify-self: center; }
 }
 @media (min-width: 600px) {
-  .dashboard-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: none; }
-  .dashboard-summary > .summary-tile:last-child { grid-column: auto; }
+  .dashboard-summary-detailed { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: none; }
+  .dashboard-summary-detailed > .summary-tile:last-child { grid-column: auto; }
   .custom-period { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; align-items: end; }
   .custom-period > button { grid-column: auto; }
 }

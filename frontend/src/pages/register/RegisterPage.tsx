@@ -27,7 +27,11 @@ export function RegisterPage() {
     const first = Object.keys(nextErrors)[0];
     if (first) { document.getElementById(first)?.focus(); return; }
     setRegistrationDraft({ email: email.trim(), password });
-    updateSession({ email: email.trim(), stage: 'registered' });
+    const nextEmail = email.trim();
+    const sameEmail = nextEmail.toLowerCase() === session.email.toLowerCase();
+    updateSession({
+      email: nextEmail, stage: 'registered', ...(!sameEmail ? { fullName: '', goal: '', incomeRange: '' } : {}),
+    });
     setPassword('');
     setConfirmPassword('');
     navigate('/register/profile');
