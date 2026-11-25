@@ -1,4 +1,5 @@
 import { randomUUID } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { expect, test } from '@playwright/test';
 import type { Page, TestInfo } from '@playwright/test';
@@ -108,4 +109,58 @@ test('регистрация и импорт настоящего CSV попол
   await page.getByRole('link', { name: 'Перейти к обзору', exact: true }).click();
   await setPeriod(page, '2026-10-01', '2026-10-31');
   await expect(page.locator('.dashboard-summary dd')).toHaveText([/50\s*000\s*₽/, /1\s*700,5\s*₽/, /48\s*299,5\s*₽/]);
+});
+
+test('выписка из области перетаскивания импортируется после подтверждения', async ({ page, request }, info) => {
+  const email = testEmail();
+  const registration = await request.post('/api/v1/auth/register', {
+    data: { email, password: TEST_PASSWORD, full_name: 'Проверка загрузки' },
+  });
+  expect(registration.status()).toBe(201);
+  await signIn(page, email);
+  if (info.project.name !== 'desktop') await page.setViewportSize({ width: 320, height: 700 });
+  await page.goto('/setup');
+  await page.getByLabel('Банк', { exact: true }).selectOption('sber');
+  const zone = page.getByRole('region', { name: 'Загрузите банковскую выписку' });
+  const csv = readFileSync(new URL('../../backend/tests/fixtures/sber.csv', import.meta.url), 'utf8');
+  const multiple = await page.evaluateHandle((content) => {
+    const data = new DataTransfer();
+    data.items.add(new File([content], 'sber.csv', { type: 'text/csv' }));
+    data.items.add(new File([content], 'another.csv', { type: 'text/csv' }));
+    return data;
+  }, csv);
+  const single = await page.evaluateHandle((content) => {
+    const data = new DataTransfer();
+    data.items.add(new File([content], 'sber.csv', { type: 'text/csv' }));
+    return data;
+  }, csv);
+
+  let importCount = 0;
+  page.on('request', (event) => {
+    if (event.method() === 'POST' && new URL(event.url()).pathname.endsWith('/transactions/import-statement')) importCount += 1;
+  });
+  await zone.dispatchEvent('dragenter', { dataTransfer: multiple });
+  await expect(zone).toHaveAttribute('data-dragging', 'true');
+  await zone.dispatchEvent('drop', { dataTransfer: multiple });
+  await expect(page.getByRole('alert')).toHaveText('Добавляйте по одной выписке за раз.');
+  await expect(zone).toHaveAttribute('data-dragging', 'false');
+
+  await zone.dispatchEvent('dragenter', { dataTransfer: single });
+  await zone.dispatchEvent('dragleave', { dataTransfer: single });
+  await expect(zone).toHaveAttribute('data-dragging', 'false');
+  await zone.dispatchEvent('dragenter', { dataTransfer: single });
+  await zone.dispatchEvent('dragover', { dataTransfer: single });
+  await zone.dispatchEvent('drop', { dataTransfer: single });
+  await expect(page.getByRole('status')).toContainText('sber.csv');
+  await expect(page.getByRole('alert')).toHaveCount(0);
+  expect(importCount).toBe(0);
+
+  const upload = page.waitForResponse('**/api/v1/transactions/import-statement');
+  await page.getByRole('button', { name: 'Импортировать выписку', exact: true }).click();
+  const response = await upload;
+  expect(response.status()).toBe(200);
+  expect((await response.json()).imported_count).toBe(3);
+  await expect(page.getByRole('status')).toContainText('Импортировано: 3');
+  expect(importCount).toBe(1);
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
 });

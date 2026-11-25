@@ -7,7 +7,7 @@ export function WelcomePage() {
       <h1 className="welcome-brand"><Brand large /></h1>
       <p className="welcome-tagline">Умные деньги —<br />большие цели</p>
       <p className="welcome-description">Анализируй расходы.<br />Экономь. Достигай.</p>
-      <img className="welcome-illustration" src="/illustrations/wallet.png" width="260" height="195" alt="Кошелёк, банковская карта и монеты" />
+      <img className="welcome-illustration" src="/illustrations/wallet.webp" width="260" height="195" alt="Кошелёк, банковская карта и монеты" />
       <div className="welcome-actions">
         <Link className="button-primary" to="/register">Создать аккаунт</Link>
         <Link className="button-secondary" to="/auth">Войти</Link>

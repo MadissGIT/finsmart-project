@@ -9,19 +9,20 @@ import { RegisterPage } from '@/pages/register/RegisterPage';
 import { ProfileSetupPage } from '@/pages/register-profile/ProfileSetupPage';
 import { RegistrationSuccessPage } from '@/pages/register-success/RegistrationSuccessPage';
 import { InitialSetupPage } from '@/pages/initial-setup/InitialSetupPage';
-import { TransactionsPage } from '@/pages/transactions/TransactionsPage';
-import { GoalsPage } from '@/pages/goals/GoalsPage';
+import DashboardPage from '@/pages/dashboard/DashboardPage';
 import { AuthPage } from '@/pages/auth/AuthPage';
 import { MorePage } from '@/pages/more/MorePage';
-import { KnowledgePage } from '@/pages/more/KnowledgePage';
-import { ArticlePage } from '@/pages/more/ArticlePage';
 import { AboutPage, FaqPage, SupportPage } from '@/pages/more/HelpPages';
-import { DiscountsPage } from '@/pages/discounts/DiscountsPage';
 import { NotFoundPage } from '@/pages/not-found/NotFoundPage';
 import { RouteEffects } from './RouteEffects';
 
-const DashboardPage = lazy(() => import('@/pages/dashboard/DashboardPage'));
 const AnalyticsPage = lazy(() => import('@/pages/analytics/AnalyticsPage'));
+
+const TransactionsPage = lazy(() => import('@/pages/transactions/TransactionsPage').then((module) => ({ default: module.TransactionsPage })));
+const GoalsPage = lazy(() => import('@/pages/goals/GoalsPage').then((module) => ({ default: module.GoalsPage })));
+const KnowledgePage = lazy(() => import('@/pages/more/KnowledgePage').then((module) => ({ default: module.KnowledgePage })));
+const ArticlePage = lazy(() => import('@/pages/more/ArticlePage').then((module) => ({ default: module.ArticlePage })));
+const DiscountsPage = lazy(() => import('@/pages/discounts/DiscountsPage').then((module) => ({ default: module.DiscountsPage })));
 
 export function App() {
   return (

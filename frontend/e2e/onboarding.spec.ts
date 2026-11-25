@@ -1,7 +1,7 @@
 import { expect, test } from '@playwright/test';
 import { mockAccount, TEST_PASSWORD } from './helpers';
 
-test('проверяет поля, показывает пароль и объясняет Google-вход', async ({ page }) => {
+test('проверяет поля, показывает пароль и объясняет вход через Yandex', async ({ page }) => {
   await page.goto('/register');
   await page.getByRole('button', { name: 'Продолжить', exact: true }).click();
   await expect(page.getByText('Укажите email в формате name@example.ru.')).toBeVisible();
@@ -11,8 +11,8 @@ test('проверяет поля, показывает пароль и объя
   await expect(page.getByLabel('Пароль', { exact: true })).toHaveAttribute('type', 'text');
   await page.getByRole('button', { name: 'Скрыть пароль', exact: true }).click();
   await expect(page.getByLabel('Пароль', { exact: true })).toHaveAttribute('type', 'password');
-  await page.getByRole('button', { name: 'Продолжить с Google', exact: true }).click();
-  await expect(page.getByRole('status')).toContainText('Google-вход ещё не подключён');
+  await page.getByRole('button', { name: 'Продолжить с Yandex', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Вход через Yandex пока недоступен');
   await page.getByRole('button', { name: 'информацией о сервисе', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('передаются на сервер');
   await page.getByRole('dialog').press('Escape');

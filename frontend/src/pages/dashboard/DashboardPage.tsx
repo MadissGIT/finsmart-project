@@ -39,10 +39,12 @@ export default function DashboardPage() {
       </div>
     </> : null}
     {dashboard.canLoadAnalytics && (
-      <Diagnostics
-        key={[user?.id, getAuthGeneration(), selection.range.from, selection.range.to, dashboard.revision].join(':')}
-        range={selection.range}
-      />
+      <div hidden={status === 'loading'}>
+        <Diagnostics
+          key={[user?.id, getAuthGeneration(), selection.range.from, selection.range.to, dashboard.revision].join(':')}
+          range={selection.range}
+        />
+      </div>
     )}
     {showPanels && <GoalPreview />}
     <Modal open={healthHelp} title="Соблюдение бюджета" onClose={() => setHealthHelp(false)}>

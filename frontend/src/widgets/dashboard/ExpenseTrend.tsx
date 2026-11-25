@@ -1,5 +1,4 @@
-import { useCallback, useId, useState } from 'react';
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import { lazy, Suspense, useCallback, useId, useState } from 'react';
 import { getExpenseTrend } from '@/entities/analytics/api';
 import type { ExpenseGrouping, ExpensePoint } from '@/entities/analytics/model/types';
 import type { DateRange } from '@/features/dashboard/model/period';
@@ -7,10 +6,11 @@ import { useApiQuery } from '@/shared/api/useApiQuery';
 import { formatMoney } from '@/shared/lib/format';
 import './expense-trend.css';
 
+const ExpenseTrendPlot = lazy(() => import('./ExpenseTrendPlot'));
+
 const groups = [['day', 'По дням'], ['week', 'По неделям']] as const;
 const axisDate = new Intl.DateTimeFormat('ru-RU', { day: '2-digit', month: '2-digit', timeZone: 'UTC' });
 const detailDate = new Intl.DateTimeFormat('ru-RU', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
-const axisAmount = new Intl.NumberFormat('ru-RU', { notation: 'compact', maximumFractionDigits: 1 });
 
 function calendarDate(date: string) {
   return new Date(date + 'T00:00:00Z');
@@ -29,6 +29,7 @@ function TrendChart({ points, period, group }: { points: ExpensePoint[]; period:
   const rows = points.map(({ date, amount }) => ({
     date,
     amount,
+    tick: axisDate.format(calendarDate(date < period.from ? period.from : date)),
     label: bucketLabel(date, period, group),
   }));
 
@@ -36,19 +37,9 @@ function TrendChart({ points, period, group }: { points: ExpensePoint[]; period:
     <>
       <div className="expense-trend-scroll">
         <div className="expense-trend-chart" style={{ minWidth: rows.length * 7 + 56 }}>
-          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-            <BarChart data={rows} accessibilityLayer aria-label="Столбчатый график расходов" margin={{ top: 8, right: 8, left: 0, bottom: 0 }}>
-              <CartesianGrid vertical={false} stroke="#e9e8f3" />
-              <XAxis dataKey="date" tickFormatter={(date: string) => axisDate.format(calendarDate(date < period.from ? period.from : date))} minTickGap={16} tickMargin={8} tickLine={false} axisLine={false} tick={{ fill: '#596782', fontSize: 11 }} />
-              <YAxis width={48} tickFormatter={(value: number) => axisAmount.format(value)} tickMargin={6} tickLine={false} axisLine={false} tick={{ fill: '#596782', fontSize: 11 }} />
-              <Tooltip
-                labelFormatter={(date) => typeof date === 'string' ? bucketLabel(date, period, group) : ''}
-                formatter={(value) => formatMoney(Number(value))}
-                cursor={{ fill: '#f0effb' }}
-              />
-              <Bar dataKey="amount" name="Расходы" fill="#5149dd" radius={[4, 4, 0, 0]} maxBarSize={40} isAnimationActive={false} />
-            </BarChart>
-          </ResponsiveContainer>
+          <Suspense fallback={null}>
+            <ExpenseTrendPlot rows={rows} />
+          </Suspense>
         </div>
       </div>
       <details className="expense-trend-values">

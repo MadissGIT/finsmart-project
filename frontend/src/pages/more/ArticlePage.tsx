@@ -79,7 +79,7 @@ function ArticleContent({ article, back }: { article: Article; back: string }) {
       </div>
       {notice && <p role="status" className="more-state">{notice}</p>}
       <div className="knowledge-cover">
-        <img src="/illustrations/wallet.png" alt="" width="180" height="135" />
+        <img src="/illustrations/wallet.webp" alt="" width="180" height="135" />
       </div>
       <h1>{article.title}</h1>
       <p className="knowledge-duration"><Clock size={16} aria-hidden="true" />{article.read_time_min} мин чтения</p>

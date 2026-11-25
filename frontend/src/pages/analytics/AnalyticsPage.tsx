@@ -31,6 +31,10 @@ export default function AnalyticsPage() {
     </div> : null}
     {hasOperations && data?.deficit_financing ? <p className="budget-context-note">Доходы не учтены: база бюджета — расходы за период.</p> : null}
     {data && data.unallocated_expense > 0 ? <p className="budget-context-note">Вне групп 50/30/20: {formatMoney(data.unallocated_expense)}. Эти расходы включены в общую сумму и диаграмму.</p> : null}
-    {canLoadAnalytics && <ExpenseTrend key={user?.id + ':' + getAuthGeneration()} period={selection.range} />}
+    {canLoadAnalytics && (
+      <div hidden={status === 'loading'} className="min-w-0">
+        <ExpenseTrend key={user?.id + ':' + getAuthGeneration()} period={selection.range} />
+      </div>
+    )}
   </div>;
 }
