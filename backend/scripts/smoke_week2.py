@@ -15,10 +15,14 @@ def main() -> None:
         articles = client.get("articles")
         articles.raise_for_status()
         assert len(articles.json()) == 10
-        offers = client.get("discounts")
-        offers.raise_for_status()
-        assert len(offers.json()) >= 5
-        assert all(item["is_demo"] for item in offers.json())
+        discounts = client.get("discounts")
+        discounts.raise_for_status()
+        offers = discounts.json()
+        assert len(offers) >= 5
+        assert any(offer["is_demo"] is True for offer in offers), "Demo offers are missing"
+        assert any(offer["is_demo"] is False and offer["affiliate_url"] for offer in offers), (
+            "Published offers with a partner URL are missing"
+        )
         registration = client.post(
             "auth/register",
             json={
