@@ -204,9 +204,6 @@
   .more-home-page .more-menu-copy strong { font-size: 12px; font-weight: 500; letter-spacing: .02em; }
   .more-home-page .more-menu-copy > span { font-size: 10px; }
   .more-home-page .more-menu-chevron { width: 14px; height: 14px; }
-  .more-home-layout .more-mobile-nav { border-top: 0; padding-inline: 10px; background: #fcfcfe; }
-  .more-home-layout .more-mobile-nav a { min-height: 46px; color: #4b5c80; font-size: 8px; }
-  .more-home-layout .more-mobile-nav a[aria-current=page] { color: #2333ce; }
 }
 @media (min-width: 768px) {
   .more-heading h1, .knowledge-article h1 { font-size: 27px; }

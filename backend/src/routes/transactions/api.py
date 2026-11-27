@@ -3,9 +3,14 @@ from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Form, HTTPException, Query, Response, UploadFile, status
+from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.db.models import BankSource, OperationType, User
+from src.db.database import get_async_session
+from src.db.models import BankSource, OperationType, Transaction, User
+from src.modules.goals.repositories import GoalRepository
+from src.modules.goals.schemas import DepositRequest, DepositSource
 from src.modules.statements.parser import MAX_FILE_BYTES
+from src.modules.statements.repositories import TransactionRepository
 from src.modules.statements.schemas import StatementError, TransactionCreate, TransactionUpdate
 from src.modules.statements.service import (
     ImportResponse,
@@ -15,14 +20,18 @@ from src.modules.statements.service import (
     TransactionNotFoundError,
 )
 from src.routes.auth.dependencies import get_current_user
+from src.routes.goals.api import Goals, Today
 from src.routes.transactions.dependencies import get_statement_service
 from src.routes.transactions.schemas import (
     CategoryUpdate,
     CategoryUpdateResponse,
+    DiscountSavingsRequest,
+    DiscountSavingsResponse,
     TransactionResponse,
 )
 
 router = APIRouter(prefix="/transactions", tags=["Transactions"])
+DatabaseSession = Annotated[AsyncSession, Depends(get_async_session)]
 
 
 @router.post("/import-statement", response_model=ImportResponse)
@@ -105,6 +114,7 @@ async def get_transaction(
     transaction_id: UUID,
     user: Annotated[User, Depends(get_current_user)],
     statement_service: Annotated[StatementService, Depends(get_statement_service)],
+    session: DatabaseSession,
 ) -> TransactionResponse:
     try:
         transaction, category_name = await statement_service.get_transaction(
@@ -112,9 +122,8 @@ async def get_transaction(
         )
     except TransactionNotFoundError as err:
         raise HTTPException(404, str(err)) from err
-    return TransactionResponse.from_transaction(
-        transaction=transaction, category_name=category_name
-    )
+    savings = await TransactionRepository(session).get_discount_contribution(transaction.id)
+    return TransactionResponse.from_transaction(transaction, category_name, savings)
 
 
 @router.patch("/{transaction_id}", response_model=TransactionResponse)
@@ -169,3 +178,62 @@ async def update_category(
     except InvalidCategoryError as err:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, str(err)) from err
     return CategoryUpdateResponse()
+
+
+async def owned_expense(
+    repo: TransactionRepository, user_id: UUID, transaction_id: UUID
+) -> Transaction:
+    transaction = await repo.get_transaction(
+        user_id=user_id, transaction_id=transaction_id, lock=True
+    )
+    if transaction is None:
+        raise HTTPException(404, "Операция не найдена")
+    if (
+        transaction.bank_source != BankSource.MANUAL
+        or transaction.operation_type != OperationType.DEBIT
+    ):
+        raise HTTPException(422, "Экономию можно записать для расхода, добавленного вручную")
+    return transaction
+
+
+@router.put("/{transaction_id}/discount-savings")
+async def record_discount_savings(
+    transaction_id: UUID,
+    payload: DiscountSavingsRequest,
+    user: Annotated[User, Depends(get_current_user)],
+    session: DatabaseSession,
+    goals: Goals,
+    today: Today,
+) -> DiscountSavingsResponse:
+    repo = TransactionRepository(session)
+    transaction = await owned_expense(repo, user.id, transaction_id)
+    amount = payload.original_amount - transaction.amount
+    if amount <= 0:
+        raise HTTPException(422, "Цена до скидки должна быть больше уплаченной суммы")
+    existing = await repo.get_discount_contribution(transaction.id)
+    if existing:
+        if existing.goal_id != payload.goal_id or existing.amount != amount:
+            raise HTTPException(409, "Взнос по этому расходу уже существует")
+    else:
+        await goals.deposit(
+            user.id,
+            payload.goal_id,
+            DepositRequest(amount=amount, source=DepositSource.DISCOUNT),
+            today,
+            transaction_id=transaction.id,
+        )
+    return DiscountSavingsResponse(goal_id=payload.goal_id, amount=amount)
+
+
+@router.delete("/{transaction_id}/discount-savings", status_code=204)
+async def remove_discount_savings(
+    transaction_id: UUID, user: Annotated[User, Depends(get_current_user)], session: DatabaseSession
+) -> Response:
+    repo = TransactionRepository(session)
+    await owned_expense(repo, user.id, transaction_id)
+    existing = await repo.get_discount_contribution(transaction_id)
+    # Match the lock taken by new deposits before changing the goal total.
+    if existing and await GoalRepository(session).get_goal(user.id, existing.goal_id, lock=True):
+        await session.delete(existing)
+        await session.commit()
+    return Response(status_code=204)

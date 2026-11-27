@@ -1,8 +1,15 @@
 import { expect, test } from '@playwright/test';
 import { mockAccount, TEST_PASSWORD } from './helpers';
 
-test('проверяет поля, показывает пароль и объясняет Google-вход', async ({ page }) => {
+test('проверяет поля, показывает пароль и объясняет вход через Yandex', async ({ page }) => {
+  await page.goto('/auth');
+  const loginPassword = page.getByLabel('Пароль', { exact: true });
+  await expect(loginPassword).toHaveValue('');
+  await expect(loginPassword).toHaveAttribute('placeholder', '••••••••');
+
   await page.goto('/register');
+  await expect(page.getByLabel('Пароль', { exact: true })).toHaveAttribute('placeholder', '••••••••');
+  await expect(page.getByLabel('Повторите пароль', { exact: true })).toHaveAttribute('placeholder', '••••••••');
   await page.getByRole('button', { name: 'Продолжить', exact: true }).click();
   await expect(page.getByText('Укажите email в формате name@example.ru.')).toBeVisible();
   await expect(page.getByText('Пароли должны совпадать.')).toBeVisible();
@@ -11,8 +18,8 @@ test('проверяет поля, показывает пароль и объя
   await expect(page.getByLabel('Пароль', { exact: true })).toHaveAttribute('type', 'text');
   await page.getByRole('button', { name: 'Скрыть пароль', exact: true }).click();
   await expect(page.getByLabel('Пароль', { exact: true })).toHaveAttribute('type', 'password');
-  await page.getByRole('button', { name: 'Продолжить с Google', exact: true }).click();
-  await expect(page.getByRole('status')).toContainText('Google-вход ещё не подключён');
+  await page.getByRole('button', { name: 'Продолжить с Yandex', exact: true }).click();
+  await expect(page.getByRole('status')).toContainText('Вход через Yandex пока недоступен');
   await page.getByRole('button', { name: 'информацией о сервисе', exact: true }).click();
   await expect(page.getByRole('dialog')).toContainText('передаются на сервер');
   await page.getByRole('dialog').press('Escape');
@@ -51,18 +58,24 @@ test('регистрация, импорт, сохранение входа и �
   await expect(page.getByRole('heading', { name: 'Привет, Максим!', exact: true })).toBeVisible();
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Привет, Максим!', exact: true })).toBeVisible();
-  await expect(page.locator('.dashboard-summary dd')).toHaveText([/0\s*₽/, /0\s*₽/, /0\s*₽/]);
+  await expect(page.locator('.dashboard-summary dd')).toHaveText([/0\s*₽/, /0\s*₽/]);
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   const stored = await page.evaluate(() => JSON.stringify({ ...sessionStorage, ...localStorage }));
   expect(stored).not.toContain(TEST_PASSWORD);
   await page.getByRole('banner').getByRole('link', { name: 'Профиль', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'Профиль', level: 1 })).toBeVisible();
-  await expect(page.getByText('Накопить на цель', { exact: true })).toBeVisible();
+  await expect(page.getByRole('link', { name: 'Настройки профиля', exact: true })).toHaveCount(0);
+  await page.getByRole('link', { name: 'Редактировать профиль', exact: true }).click();
+  await expect(page).toHaveURL(/\/more\/profile\/settings$/);
+  await expect(page.getByRole('link', { name: 'Загрузить выписку', exact: true })).toHaveCount(0);
+  await expect(page.getByLabel('Цель', { exact: true })).toHaveValue('saving');
+  await expect(page.getByLabel('Уровень дохода (в месяц)', { exact: true })).toHaveValue('30-60');
+  await expect(page.getByLabel('Дата рождения', { exact: true })).toHaveValue('29.02.2000');
   await page.getByRole('button', { name: 'Выйти', exact: true }).click();
   await expect(page.getByRole('heading', { name: 'ФинСмарт', exact: true })).toBeVisible();
   expect(await page.evaluate(() => sessionStorage.getItem('finsmart.auth.v1'))).toBeNull();
   await page.goto('/');
-  await expect(page.locator('.dashboard-summary dd')).toHaveText(['—', '—', '—']);
+  await expect(page.locator('.dashboard-summary dd')).toHaveText(['—', '—']);
 });
 
 test('перезагрузка шага профиля требует повторно ввести пароль и не создаёт аккаунт', async ({ page }) => {

@@ -11,6 +11,7 @@ export function AppLayout() {
   const offer = location.pathname === '/discounts' && (params.has('offer') || params.get('view') === 'offers');
   const moreHome = location.pathname === '/more' || location.pathname === '/more/';
   const more = moreHome || location.pathname.startsWith('/more/');
+  const profile = /^\/more\/profile(?:\/|$)/.test(location.pathname);
   const article = location.pathname.startsWith('/more/knowledge/');
   const goalDetail = /^\/goals\/[^/]+/.test(location.pathname);
   const className = [
@@ -19,6 +20,7 @@ export function AppLayout() {
     offer && 'offer-layout',
     more && 'more-layout',
     moreHome && 'more-home-layout',
+    profile && 'profile-layout',
     article && 'knowledge-article-layout',
     goalDetail && 'goal-detail-layout',
   ].filter(Boolean).join(' ');
@@ -30,7 +32,7 @@ export function AppLayout() {
         <Header />
         <main id="main-content" tabIndex={-1} className="app-content"><Outlet /></main>
       </div>
-      <MobileNav compact={moreHome} />
+      <MobileNav />
     </div>
   );
 }

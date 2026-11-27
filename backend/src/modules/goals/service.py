@@ -125,10 +125,18 @@ class GoalService:
         return self._response(goal, current, today, income)
 
     async def deposit(
-        self, user_id: UUID, goal_id: UUID, payload: DepositRequest, today: date
+        self,
+        user_id: UUID,
+        goal_id: UUID,
+        payload: DepositRequest,
+        today: date,
+        *,
+        transaction_id: UUID | None = None,
     ) -> DepositResponse:
         goal = await self._get(user_id, goal_id, lock=True)
         current = await self._goal_repository.total(goal.id)
+        if transaction_id is not None and goal.deadline < today:
+            raise InvalidGoalError("Срок этой копилки истёк")
         if current + payload.amount > goal.target_amount:
             raise InvalidGoalError("Взнос превышает остаток до цели")
         previous_payment = monthly_payment(
@@ -145,7 +153,12 @@ class GoalService:
         )
         income = await self._monthly_income(user_id, today)
         await self._goal_repository.save(
-            GoalContribution(goal_id=goal.id, amount=payload.amount, source=payload.source.value)
+            GoalContribution(
+                goal_id=goal.id,
+                amount=payload.amount,
+                source=payload.source.value,
+                transaction_id=transaction_id,
+            )
         )
         progress = self._response(goal, current + payload.amount, today, income)
         return DepositResponse(

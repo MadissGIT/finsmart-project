@@ -11,6 +11,8 @@ export interface Discount {
   promocode: string | null;
   affiliate_url: string;
   valid_until: string;
+  original_price?: number | null;
+  sale_price?: number | null;
   is_demo: boolean;
 }
 

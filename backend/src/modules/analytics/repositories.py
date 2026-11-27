@@ -88,7 +88,12 @@ class AnalyticsRepository:
     async def discounts(self, category_ids: set[int], as_of: date) -> list[Discount]:
         result = await self._session.scalars(
             select(Discount)
-            .where(Discount.category_id.in_(category_ids), Discount.valid_until >= as_of)
+            .where(
+                Discount.category_id.in_(category_ids),
+                Discount.status == "published",
+                Discount.valid_until >= as_of,
+                Discount.valid_from.is_(None) | (Discount.valid_from <= as_of),
+            )
             .order_by(Discount.discount_percent.desc(), Discount.id)
         )
         return list(result.all())

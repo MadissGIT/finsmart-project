@@ -151,3 +151,19 @@
 @media (hover: none) and (pointer: coarse) {
   .transaction-form input, .transaction-form textarea, .transaction-search input, .transaction-date-range input { font-size: 16px; }
 }
+
+.transaction-savings { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 12px; margin-top: 12px; }
+.transaction-savings p { flex-basis: 100%; font-size: 13px; }
+.transaction-savings .inline-link { min-height: 32px; }
+.transaction-savings-form > p { font-size: 13px; line-height: 1.5; }
+.transaction-savings-form select {
+  display: block;
+  width: 100%;
+  min-height: 38px;
+  margin-top: 4px;
+  padding: 5px 10px;
+  border: 1px solid #b6c1d8;
+  border-radius: 10px;
+  background: #f1f4fc;
+  color: #19223d;
+}

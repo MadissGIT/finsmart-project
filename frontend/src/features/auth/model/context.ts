@@ -6,7 +6,7 @@ interface AuthContextValue {
   user: UserProfile | null;
   error: string | null;
   signIn: (fields: LoginRequest) => Promise<void>;
-  createAccount: (fields: RegisterRequest) => Promise<void>;
+  createAccount: (fields: RegisterRequest) => Promise<string>;
   signOut: () => void;
   retryProfile: () => void;
 }

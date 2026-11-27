@@ -7,6 +7,9 @@ from pydantic import BaseModel, ConfigDict, EmailStr, Field, SecretStr, field_va
 
 from src.core.settings import get_project_settings
 
+ProfileGoal = Literal["expenses", "saving", "budget", "habits"]
+IncomeRange = Literal["under-30", "30-60", "60-100", "over-100", "private"]
+
 
 class LoginRequest(BaseModel):
     email: EmailStr
@@ -16,7 +19,10 @@ class LoginRequest(BaseModel):
 class RegisterRequest(LoginRequest):
     full_name: str = Field(min_length=1, max_length=200, pattern=r"\S")
 
+    welcome: bool = False
     birth_date: date | None = None
+    goal: ProfileGoal | None = None
+    income_range: IncomeRange | None = None
 
     @field_validator("birth_date")
     @classmethod
@@ -47,6 +53,10 @@ class UserResponse(BaseModel):
     full_name: str
     created_at: datetime
     birth_date: date | None = None
+    goal: ProfileGoal | None = None
+    income_range: IncomeRange | None = None
+    preferences_saved: bool = False
+    role: Literal["user", "admin", "moderator"] = "user"
 
 
 class InvalidCredentialsError(ValueError):
@@ -61,3 +71,5 @@ class ProfileUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid", str_strip_whitespace=True)
 
     full_name: str = Field(min_length=1, max_length=200, pattern=r"\S")
+    goal: ProfileGoal | None = None
+    income_range: IncomeRange | None = None

@@ -106,16 +106,19 @@ test('поздний ответ старого поиска не заменяе�
   await page.getByLabel('Поиск операций', { exact: true }).fill('старый');
   await oldRequest;
   await page.getByLabel('Поиск операций', { exact: true }).fill('новый');
-  await expect(page.locator('.transaction-row')).toContainText('новый результат');
+  await expect(page.locator('.transaction-row')).toContainText('Новый результат');
   await page.waitForTimeout(1100);
-  await expect(page.locator('.transaction-row')).not.toContainText('старый результат');
+  await expect(page.locator('.transaction-row')).not.toContainText('Старый результат');
 });
 
 test('история браузера закрывает правку и не превращает её в создание', async ({ page }) => {
   await prepare(page); await signIn(page); await page.goto('/transactions');
+  await expect(page.locator('.transaction-row')).toContainText('Тестовый магазин');
   await page.locator('.transaction-row').click();
+  await expect(page.getByRole('button', { name: 'Изменить категорию' })).toContainText('Тестовый магазин');
   await page.getByRole('button', { name: 'Редактировать', exact: true }).click();
   await expect(page.getByRole('dialog', { name: 'Редактировать операцию' })).toBeVisible();
+  await expect(page.getByLabel('Организация или описание', { exact: true })).toHaveValue('тестовый магазин');
   await page.goBack();
   await expect(page.locator('.transaction-row')).toHaveCount(1);
   await expect(page.getByRole('dialog')).toHaveCount(0);

@@ -1,8 +1,18 @@
 @import "tailwindcss";
 @import "@fontsource-variable/inter";
 
+/* Для знака рубля достаточно одного глифа вместо всего расширенного Latin-шрифта. */
+@font-face {
+  font-family: "FinSmart Ruble";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 100 900;
+  src: url("./fonts/inter-ruble.woff2") format("woff2");
+  unicode-range: U+20BD;
+}
+
 @theme {
-  --font-sans: "Inter Variable", "Segoe UI", system-ui, sans-serif;
+  --font-sans: "FinSmart Ruble", "Inter Variable", "Segoe UI", system-ui, sans-serif;
   --color-brand-50: #f0efff;
   --color-brand-100: #e5e3ff;
   --color-brand-600: #5149dd;
@@ -84,9 +94,9 @@
 .consent-row label { font-size: 10px; line-height: 1.45; color: #69738b; }
 .form-divider { display: flex; align-items: center; gap: 12px; margin: 12px 0; color: #a2a7b7; font-size: 10px; }
 .form-divider::before, .form-divider::after { content: ""; flex: 1; height: 1px; background: #e0e3ed; }
-.button-google { display: flex; width: 100%; min-height: 40px; align-items: center; justify-content: center; gap: 8px; border: 1px solid #e0e3ed; border-radius: 12px; font-size: 12px; color: #69738b; }
-.button-google:hover { background: #f0f2fa; }
-.google-letter { font-size: 19px; font-weight: 750; color: #4285f4; }
+.button-yandex { display: flex; width: 100%; min-height: 40px; align-items: center; justify-content: center; gap: 8px; border: 1px solid #e0e3ed; border-radius: 12px; font-size: 12px; color: #69738b; }
+.button-yandex:hover { background: #f0f2fa; }
+.yandex-letter { font-size: 19px; font-weight: 750; color: #fc3f1d; }
 .onboarding-footer { margin-top: auto; padding-top: 20px; text-align: center; font-size: 10px; color: #7b8498; }
 .profile-form { flex: 1; }
 .profile-preferences { display: grid; gap: 16px; margin-top: 12px; }
@@ -110,6 +120,12 @@
 .initial-setup-page .app-header { margin: -4px 0 12px; padding: 0; height: 42px; }
 .initial-setup-page .app-header .brand-wordmark { font-size: 24px; }
 .initial-setup-page .brand-caption { display: none; }
+.statement-dropzone { border: 1px dashed #a8a4e6; }
+.statement-dropzone[data-dragging="true"] { border-color: #342fd0; background: #e5e3ff; }
+.statement-drop-hint { display: none; }
+@media (any-hover: hover) {
+  .statement-dropzone .statement-drop-hint { display: block; color: #596278; }
+}
 .setup-illustration { display: block; width: 230px; max-width: 100%; height: 160px; object-fit: contain; margin: 0 auto 12px; }
 .statement-info ul { display: grid; gap: 8px; margin-top: 8px; padding: 0; list-style: none; }
 .statement-info li { display: flex; align-items: center; gap: 4px; color: #8991a4; font-size: 10px; }
@@ -199,9 +215,9 @@
 .profile-details dd { font-size: 14px; overflow-wrap: anywhere; }
 
 /* Данные за выбранный период поступают из API. */
-.dashboard-heading { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.dashboard-heading { display: flex; min-height: 40px; align-items: center; justify-content: space-between; gap: 12px; }
 .dashboard-heading-actions { display: flex; align-items: center; gap: 4px; }
-.dashboard-summary > .summary-tile:last-child { grid-column: 1 / -1; }
+.dashboard-summary-detailed > .summary-tile:last-child { grid-column: 1 / -1; }
 .summary-tile > div { min-width: 0; }
 .summary-tile dd { white-space: normal; overflow-wrap: anywhere; font-size: clamp(16px, 4vw, 22px); }
 .summary-tile small { white-space: normal; line-height: 1.5; }
@@ -219,10 +235,9 @@
 .period-error { grid-column: 1 / -1; color: #b5284b; font-size: 12px; line-height: 1.6; }
 .dashboard-notice { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 12px; padding: 16px; border-radius: 14px; background: #f0efff; }
 .dashboard-notice h2 { margin-bottom: 5px; }
-.dashboard-notice p, .dashboard-loading { color: #69738b; font-size: 13px; line-height: 1.6; }
+.dashboard-notice p { color: #69738b; font-size: 13px; line-height: 1.6; }
 .dashboard-notice-error { background: #fff1f3; }
 .dashboard-notice-error p { color: #a63856; }
-.dashboard-loading { padding: 14px 0; }
 .analytics-page { display: grid; gap: 18px; }
 .budget-context-note { color: #69738b; font-size: 12px; line-height: 1.6; }
 .budget-target-segment { display: block; height: 100%; flex-shrink: 0; background: #e2e5f0; }
@@ -246,8 +261,8 @@
   .expense-compact .expense-chart { width: 160px; justify-self: center; }
 }
 @media (min-width: 600px) {
-  .dashboard-summary { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: none; }
-  .dashboard-summary > .summary-tile:last-child { grid-column: auto; }
+  .dashboard-summary-detailed { grid-template-columns: repeat(3, minmax(0, 1fr)); max-width: none; }
+  .dashboard-summary-detailed > .summary-tile:last-child { grid-column: auto; }
   .custom-period { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; align-items: end; }
   .custom-period > button { grid-column: auto; }
 }

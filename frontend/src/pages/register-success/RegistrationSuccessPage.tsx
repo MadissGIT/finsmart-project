@@ -11,7 +11,7 @@ export function RegistrationSuccessPage() {
   return (
     <>
       <RegistrationSteps step={3} />
-      <img className="success-illustration" src="/illustrations/success.png" width="220" height="165" alt="Галочка успешного завершения" />
+      <img className="success-illustration" src="/illustrations/success.webp" width="220" height="165" alt="Галочка успешного завершения" />
       <h1 className="onboarding-title success-title">Регистрация<br />успешна!</h1>
       <p className="onboarding-description success-description">Теперь Вы можете начать использовать ФинСмарт и управлять своими финансами</p>
       <div className="onboarding-info"><ShieldCheck size={22} aria-hidden="true" /><div><h2>Аккаунт создан</h2><p>Теперь можно добавить операции и увидеть свой финансовый обзор.</p></div></div>

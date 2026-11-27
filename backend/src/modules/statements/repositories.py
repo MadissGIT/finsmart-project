@@ -6,7 +6,15 @@ from sqlalchemy import func, or_, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.db.models import Category, OperationType, Transaction, UserRule
+from src.db.models import (
+    Category,
+    GoalContribution,
+    OperationType,
+    StatementImport,
+    Transaction,
+    User,
+    UserRule,
+)
 from src.modules.achievements.repositories import AchievementRepository
 
 RUSSIAN_UPPERCASE = "АБВГДЕЁЖЗИЙКЛМНОПРСТУФХЦЧШЩЪЫЬЭЮЯ"
@@ -16,8 +24,14 @@ class TransactionRepository:
     def __init__(self, session: AsyncSession) -> None:
         self._session = session
 
-    async def import_transactions(self, transactions: list[Transaction]) -> list[Transaction]:
+    async def import_transactions(
+        self, transactions: list[Transaction], *, user_id: UUID, recognized: int
+    ) -> list[Transaction]:
+        self._session.add(
+            StatementImport(user_id=user_id, total=len(transactions), recognized=recognized)
+        )
         if not transactions:
+            await self._session.commit()
             return []
         records = [
             {
@@ -46,9 +60,7 @@ class TransactionRepository:
         )
         imported = list(result.all())
         if imported:
-            await AchievementRepository(self._session).award(
-                imported[0].user_id, "BADGE_FIRST_IMPORT"
-            )
+            await AchievementRepository(self._session).award_event(user_id, "first_import")
         await self._session.commit()
         return imported
 
@@ -100,6 +112,16 @@ class TransactionRepository:
         return [(transaction, category) for transaction, category in result.tuples()]
 
     async def save_transaction(self, transaction: Transaction) -> None:
+        if transaction.id is None:
+            await self._session.execute(
+                update(User)
+                .where(
+                    User.id == transaction.user_id,
+                    User.welcome_started_at.is_not(None),
+                    User.first_manual_at.is_(None),
+                )
+                .values(first_manual_at=func.now())
+            )
         self._session.add(transaction)
         await self._session.commit()
 
@@ -107,14 +129,21 @@ class TransactionRepository:
         await self._session.delete(transaction)
         await self._session.commit()
 
-    async def get_transaction(self, *, user_id: UUID, transaction_id: UUID) -> Transaction | None:
-        result = await self._session.scalars(
-            select(Transaction).where(
-                Transaction.user_id == user_id,
-                Transaction.id == transaction_id,
-            )
+    async def get_transaction(
+        self, *, user_id: UUID, transaction_id: UUID, lock: bool = False
+    ) -> Transaction | None:
+        query = select(Transaction).where(
+            Transaction.user_id == user_id,
+            Transaction.id == transaction_id,
         )
-        return result.one_or_none()
+        if lock:
+            query = query.with_for_update()
+        return await self._session.scalar(query)
+
+    async def get_discount_contribution(self, transaction_id: UUID) -> GoalContribution | None:
+        return await self._session.scalar(
+            select(GoalContribution).where(GoalContribution.transaction_id == transaction_id)
+        )
 
     async def get_category(self, category_id: int) -> Category | None:
         return await self._session.get(Category, category_id)

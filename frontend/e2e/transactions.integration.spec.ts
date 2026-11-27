@@ -87,7 +87,7 @@ test('операция проходит создание, refresh, правку,
   await screenshot(page, info, 'transactions-list');
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
   await page.getByRole('navigation', { name: info.project.name === 'mobile' ? 'Мобильная навигация' : 'Основная навигация' }).getByRole('link', { name: 'Обзор', exact: true }).click();
-  await expect(page.locator('.dashboard-summary dd')).toHaveText([/0\s*₽/, /1\s*340\s*₽/, /[−-]1\s*340\s*₽/]);
+  await expect(page.locator('.dashboard-summary dd')).toHaveText([/[−-]1\s*340\s*₽/, /1\s*340\s*₽/]);
   await page.goto('/transactions?transaction=' + createdItem.id);
   await page.getByRole('button', { name: 'Удалить', exact: true }).click();
   await page.getByRole('dialog').getByRole('button', { name: 'Удалить', exact: true }).click();

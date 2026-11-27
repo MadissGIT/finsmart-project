@@ -11,8 +11,16 @@ import { useApiMutation } from '@/shared/api/useApiMutation';
 import { CategoryIcon, TransactionAsset } from './CategoryIcon';
 import { TransactionSheet } from './TransactionSheet';
 
-export function TransactionForm({ categories, original, onClose, onSaved }: { categories: Category[]; original?: Transaction; onClose: () => void; onSaved: (item: Transaction) => void }) {
-  const [draft, setDraft] = useState(() => transactionDraft(original));
+export function TransactionForm({ categories, original, merchant, categoryId, onClose, onSaved }: { categories: Category[]; original?: Transaction; merchant?: string; categoryId?: string; onClose: () => void; onSaved: (item: Transaction) => void }) {
+  const [draft, setDraft] = useState(() => {
+    const initial = transactionDraft(original);
+    if (original) return initial;
+    return {
+      ...initial,
+      merchant_name: merchant ?? '',
+      category_id: categoryId && eligibleCategories(categories, 'DEBIT').some(({ id }) => String(id) === categoryId) ? categoryId : '',
+    };
+  });
   const [errors, setErrors] = useState<DraftErrors>({});
   const mutation = useApiMutation();
   const available = eligibleCategories(categories, draft.operation_type);

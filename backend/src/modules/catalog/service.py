@@ -1,17 +1,17 @@
-import json
 from datetime import date, datetime, time, timedelta
-from functools import lru_cache
-from pathlib import Path
 from uuid import UUID
 from zoneinfo import ZoneInfo
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 
+from src.common_types import JsonDecimal
 from src.modules.achievements.repositories import AchievementRepository
 from src.modules.catalog.repositories import CatalogRepository
 
 
 class Article(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     slug: str
     title: str
@@ -37,13 +37,9 @@ class DiscountResponse(BaseModel):
     promocode: str | None
     affiliate_url: str
     valid_until: date
+    original_price: JsonDecimal | None = None
+    sale_price: JsonDecimal | None = None
     is_demo: bool
-
-
-@lru_cache(maxsize=1)
-def get_articles() -> tuple[Article, ...]:
-    path = Path(__file__).resolve().parents[3] / "seeds" / "articles.json"
-    return tuple(Article.model_validate(row) for row in json.loads(path.read_text()))
 
 
 class RecommendedDiscounts(BaseModel):
@@ -58,11 +54,11 @@ class CatalogService:
         self._catalog_repository = catalog_repository
         self._achievement_repository = achievement_repository
 
-    def articles(self, tags: list[str]) -> list[Article]:
+    async def articles(self, tags: list[str]) -> list[Article]:
         selected = {tag.strip().casefold() for tag in tags}
         return [
-            article
-            for article in get_articles()
+            Article.model_validate(article)
+            for article in await self._catalog_repository.articles()
             if selected <= {tag.casefold() for tag in article.tags}
         ]
 
@@ -83,6 +79,8 @@ class CatalogService:
                 promocode=row.promocode,
                 affiliate_url=row.affiliate_url,
                 valid_until=row.valid_until,
+                original_price=row.original_price,
+                sale_price=row.sale_price,
                 is_demo=row.is_demo,
             )
             for row, name in rows

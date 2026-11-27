@@ -74,16 +74,16 @@ class GoalRepository:
         self._session.add(record)
         await self._session.flush()
         if isinstance(record, Goal):
-            await AchievementRepository(self._session).award(record.user_id, "BADGE_PIGGY_CREATED")
+            await AchievementRepository(self._session).award_event(record.user_id, "first_goal")
         else:
             goal = await self._session.get(Goal, record.goal_id)
             if goal is not None:
-                await AchievementRepository(self._session).award(
-                    goal.user_id, "BADGE_FIRST_DEPOSIT"
+                await AchievementRepository(self._session).award_event(
+                    goal.user_id, "first_deposit"
                 )
                 if await self.total(goal.id) >= goal.target_amount:
-                    await AchievementRepository(self._session).award(
-                        goal.user_id, "BADGE_GOAL_REACHED"
+                    await AchievementRepository(self._session).award_event(
+                        goal.user_id, "goal_reached"
                     )
         await self._session.commit()
 

@@ -14,7 +14,7 @@ from sqlalchemy.ext.asyncio import AsyncConnection, AsyncSession
 
 from src.app import app
 from src.db.database import get_async_session
-from src.db.models import Discount, RefreshSession, Transaction, User
+from src.db.models import Discount, RefreshSession, SupportTicket, Transaction, User, UserChallenge
 
 FIXTURES = Path(__file__).parent / "fixtures"
 
@@ -765,14 +765,15 @@ def test_week4_catalog_and_persistent_achievements(api_postgres) -> None:
         assert (await client.get("/api/v1/articles", params={"tags": "missing"})).json() == []
         offers = (await client.get("/api/v1/discounts")).json()
         assert offers
-        assert all(row["is_demo"] for row in offers)
+        assert any(row["is_demo"] for row in offers)
+        assert any(not row["is_demo"] and row["affiliate_url"] for row in offers)
         filtered_offers = (await client.get("/api/v1/discounts?category_id=1")).json()
         assert all(row["category_id"] == 1 for row in filtered_offers)
         assert (await client.get("/api/v1/achievements")).status_code == 401
         tokens = await register(client, "badges@example.com")
         client.headers["Authorization"] = f"Bearer {tokens['access_token']}"
         initial = (await client.get("/api/v1/achievements")).json()
-        assert len(initial["items"]) == 10
+        assert len(initial["items"]) == 15
         assert initial["reward_points"] == 0
         content = (FIXTURES / "tbank.csv").read_bytes()
         for _ in range(2):
@@ -792,6 +793,9 @@ def test_week4_catalog_and_persistent_achievements(api_postgres) -> None:
         assert deposited.status_code == 200, deposited.text
         earned = (await client.get("/api/v1/achievements")).json()
         assert earned["reward_points"] == 55
+        game = (await client.post("/api/v1/gamification/progress")).json()
+        assert game["reward_points"] == 55
+        assert game["league"]["title"] == "Серебряная"
         assert {row["code"] for row in earned["items"] if row["unlocked"]} == {
             "BADGE_FIRST_IMPORT",
             "BADGE_PIGGY_CREATED",
@@ -947,5 +951,339 @@ def test_optional_birth_date_is_validated_and_persisted(api_postgres) -> None:
             )
             assert profile.status_code == 200
             assert profile.json()["birth_date"] == expected
+
+    runner.run(scenario())
+
+
+def test_challenge_progress_respects_start_deadline_and_account(api_postgres) -> None:
+    runner, client, connection = api_postgres
+
+    async def scenario() -> None:
+        tokens = await register(client, "challenges@example.com")
+        client.headers["Authorization"] = f"Bearer {tokens['access_token']}"
+        route = "/api/v1/gamification"
+        now = datetime.now(UTC)
+        assert (await client.post(f"{route}/challenges/nonexistent")).status_code == 404
+        for code in ("three-days", "savings-in-motion"):
+            assert (await client.post(f"{route}/challenges/{code}")).status_code == 204
+        await connection.execute(update(UserChallenge).values(started_at=now - timedelta(days=8)))
+        for days_ago in (9, 6, 6, 4, 2, 0):
+            response = await client.post("/api/v1/transactions", json=MANUAL_TRANSACTION)
+            assert response.status_code == 201, response.text
+            await connection.execute(
+                update(Transaction)
+                .where(Transaction.id == response.json()["id"])
+                .values(created_at=now - timedelta(days=days_ago))
+            )
+        goal = await client.post(
+            "/api/v1/goals",
+            json={"title": "Копилка", "target_amount": 3000, "deadline": "2099-12-31"},
+        )
+        goal_id = goal.json()["id"]
+        for amount in (800, 200):
+            deposit = await client.post(
+                f"/api/v1/goals/{goal_id}/deposit", json={"amount": amount, "source": "free_money"}
+            )
+            assert deposit.status_code == 200, deposit.text
+        assert (await client.post(f"{route}/challenges/three-days")).status_code == 204
+        progress = (await client.post(f"{route}/progress")).json()
+        rows = {challenge["code"]: challenge for challenge in progress["challenges"]}
+        assert rows["three-days"]["status"] == "completed"
+        assert rows["three-days"]["current"] == 3
+        assert rows["savings-in-motion"]["current"] == 1000
+        assert rows["savings-in-motion"]["status"] == "completed"
+        assert rows["five-expenses"]["status"] == "available"
+        assert (await client.post(f"{route}/progress")).json() == progress
+        outsider = await register(client, "other-challenges@example.com")
+        outside = await client.post(
+            f"{route}/progress", headers={"Authorization": f"Bearer {outsider['access_token']}"}
+        )
+        assert outside.status_code == 200
+        assert all(row["status"] == "available" for row in outside.json()["challenges"])
+
+    runner.run(scenario())
+
+
+def test_support_welcome_and_discount_savings(api_postgres) -> None:
+    runner, client, connection = api_postgres
+
+    async def scenario() -> None:
+        registered = await client.post(
+            "/api/v1/auth/register",
+            json={
+                "email": "welcome-support@example.com",
+                "password": "Test-password-123!",
+                "full_name": "Тест",
+                "welcome": True,
+            },
+        )
+        assert registered.status_code == 201
+        client.headers["Authorization"] = f"Bearer {registered.json()['access_token']}"
+        game_endpoint = "/api/v1/gamification/progress"
+        assert (await client.post(game_endpoint)).json()["welcome_stage"] == "first_transaction"
+        ticket_endpoint = "/api/v1/support/tickets"
+        ticket_data = {"request_id": "9148851f-5981-4dd1-83ec-371a0659e863", "message": "Проверка"}
+        attachment = {"attachment": ("test.pdf", b"%PDF-1.4\n", "application/pdf")}
+        created = await client.post(ticket_endpoint, data=ticket_data, files=attachment)
+        assert created.status_code == 201
+        assert (
+            await client.post(ticket_endpoint, data=ticket_data, files=attachment)
+        ).json() == created.json()
+        saved_ticket = (
+            await connection.execute(select(SupportTicket.message, SupportTicket.attachment))
+        ).one()
+        assert saved_ticket == ("Проверка", b"%PDF-1.4\n")
+        rejected = await client.post(
+            ticket_endpoint,
+            data=ticket_data,
+            files={"attachment": ("test.pdf", b"fake", "application/pdf")},
+        )
+        assert rejected.status_code == 422
+
+        response = await client.post(
+            "/api/v1/transactions", json={**MANUAL_TRANSACTION, "amount": 800}
+        )
+        assert response.status_code == 201, response.text
+        id_ = response.json()["id"]
+        assert (await client.post(game_endpoint)).json()["welcome_stage"] == "completed"
+        goal_response = await client.post(
+            "/api/v1/goals",
+            json={"title": "Резерв", "target_amount": 1000, "deadline": "2099-12-31"},
+        )
+        goal_id = goal_response.json()["id"]
+        goal_endpoint = f"/api/v1/goals/{goal_id}"
+        expense_endpoint = f"/api/v1/transactions/{id_}"
+        savings_endpoint = expense_endpoint + "/discount-savings"
+        savings = {"goal_id": goal_id, "original_amount": 1000}
+        for _ in range(2):
+            result = await client.put(savings_endpoint, json=savings)
+            assert result.status_code == 200, result.text
+            assert result.json()["amount"] == 200
+        assert (await client.get(goal_endpoint)).json()["current_amount"] == 200
+        assert (await client.get(expense_endpoint)).json()["amount"] == 800
+        linked = (await client.get(expense_endpoint)).json()["discount_savings"]
+        assert linked == {"goal_id": goal_id, "amount": 200}
+        assert (
+            await client.put(savings_endpoint, json={**savings, "original_amount": 1001})
+        ).status_code == 409
+        assert (await client.patch(expense_endpoint, json={"amount": 801})).status_code == 422
+        outsider = await register(client, "discount-foreign@example.com")
+        headers = {"Authorization": f"Bearer {outsider['access_token']}"}
+        assert (
+            await client.put(savings_endpoint, headers=headers, json=savings)
+        ).status_code == 404
+        assert (await client.delete(savings_endpoint)).status_code == 204
+        assert (await client.get(goal_endpoint)).json()["current_amount"] == 0
+        assert (await client.put(savings_endpoint, json=savings)).status_code == 200
+        assert (await client.delete(expense_endpoint)).status_code == 204
+        assert (await client.get(goal_endpoint)).json()["current_amount"] == 0
+        assert (await client.post(game_endpoint)).json()["welcome_stage"] == "completed"
+
+    runner.run(scenario())
+
+
+def test_admin_permissions_catalog_and_activity(api_postgres) -> None:
+    runner, client, connection = api_postgres
+
+    async def scenario() -> None:
+        account = await register(client, "admin-check@example.com")
+        member = await register(client, "member-check@example.com")
+        moderator = await register(client, "moderator-check@example.com")
+        await connection.execute(
+            update(User).where(User.email == "admin-check@example.com").values(role="admin")
+        )
+        await connection.execute(
+            update(User).where(User.email == "moderator-check@example.com").values(role="moderator")
+        )
+        admin = {"Authorization": f"Bearer {account['access_token']}"}
+        user = {"Authorization": f"Bearer {member['access_token']}"}
+        staff = {"Authorization": f"Bearer {moderator['access_token']}"}
+        root = "/api/v1/admin"
+        for endpoint in (
+            "analytics",
+            "users",
+            "categories",
+            "discounts",
+            "articles",
+            "badges",
+            "tickets",
+        ):
+            assert (await client.get(f"{root}/{endpoint}")).status_code == 401
+            assert (await client.get(f"{root}/{endpoint}", headers=user)).status_code == 403
+        assert (await client.get(root + "/users", headers=staff)).status_code == 403
+        assert (await client.get(root + "/discounts", headers=staff)).status_code == 200
+
+        category = {"name": "Тестовая ветка", "budget_group": "NEEDS", "keywords": ["test keyword"]}
+        response = await client.post(root + "/categories", json=category, headers=admin)
+        assert response.status_code == 201, response.text
+        parent = response.json()["id"]
+        child = {**category, "name": "Подкатегория", "parent_id": parent, "keywords": []}
+        response = await client.post(root + "/categories", json=child, headers=admin)
+        assert response.status_code == 201, response.text
+        child_id = response.json()["id"]
+        invalid = await client.put(
+            f"{root}/categories/{parent}", json={**category, "parent_id": child_id}, headers=admin
+        )
+        assert invalid.status_code == 422
+        listed = (await client.get(root + "/categories", headers=admin)).json()
+        assert any(row["id"] == parent and row["keywords"] == ["test keyword"] for row in listed)
+
+        discount = {
+            "title": "Тестовая акция",
+            "partner_name": "Магазин",
+            "category_id": child_id,
+            "valid_until": "2099-12-31",
+            "original_price": 100,
+            "sale_price": 85,
+        }
+        response = await client.post(root + "/discounts", json=discount, headers=staff)
+        assert response.status_code == 201, response.text
+        offer_id = response.json()["id"]
+        offer_path = f"{root}/discounts/{offer_id}"
+        public_offers = f"/api/v1/discounts?category_id={child_id}"
+        assert (await client.get(public_offers)).json() == []
+        published = await client.put(
+            offer_path,
+            json={**discount, "status": "published", "promocode": "TEST15"},
+            headers=staff,
+        )
+        assert published.status_code == 200, published.text
+        [offer] = (await client.get(public_offers)).json()
+        assert offer["promocode"] == "TEST15"
+        assert offer["original_price"] == 100
+        assert offer["sale_price"] == 85
+        await client.put(offer_path, json={**discount, "status": "hidden"}, headers=staff)
+        assert (await client.get(public_offers)).json() == []
+        await client.put(
+            offer_path,
+            json={**discount, "status": "published", "valid_until": "2000-01-01"},
+            headers=staff,
+        )
+        assert (await client.get(public_offers)).json() == []
+
+        article = {
+            "title": "Тестовая статья",
+            "category": "Бюджет",
+            "read_time_min": 3,
+            "summary": "Краткое описание",
+            "content_markdown": "Содержание",
+            "tags": ["Бюджет"],
+        }
+        response = await client.post(root + "/articles", json=article, headers=staff)
+        assert response.status_code == 201, response.text
+        article_id = response.json()["id"]
+        public_article = f"/api/v1/articles/{article_id}"
+        assert (await client.get(public_article)).status_code == 404
+        published = await client.put(
+            f"{root}/articles/{article_id}",
+            json={**article, "title": "Опубликованная статья", "status": "published"},
+            headers=staff,
+        )
+        assert published.status_code == 200, published.text
+        assert (await client.get(public_article)).json()["title"] == "Опубликованная статья"
+
+        new_badge = {
+            "title": "Первый расход",
+            "level": "Бронза",
+            "icon": "🏅",
+            "condition": "1 расход",
+            "points": 7,
+            "metric": "expenses",
+            "target": 1,
+            "enabled": True,
+        }
+        response = await client.post(
+            root + "/badges", json={**new_badge, "code": "TEST_FIRST_EXPENSE"}, headers=staff
+        )
+        assert response.status_code == 201, response.text
+        assert (
+            await client.post("/api/v1/transactions", headers=user, json=MANUAL_TRANSACTION)
+        ).status_code == 201
+        for points in (7, 99):
+            updated = await client.put(
+                root + "/badges/TEST_FIRST_EXPENSE",
+                json={**new_badge, "points": points},
+                headers=staff,
+            )
+            assert updated.status_code == 200, updated.text
+            progress = (await client.post("/api/v1/gamification/progress", headers=user)).json()
+            earned = next(row for row in progress["items"] if row["code"] == "TEST_FIRST_EXPENSE")
+            assert earned["unlocked"] and earned["points"] == 7
+
+        preexisting = (await client.get(root + "/analytics", headers=admin)).json()
+        assert preexisting["imports"] == 0 and preexisting["recognition_percent"] is None
+        imported = await client.post(
+            "/api/v1/transactions/import-statement",
+            headers=user,
+            files={"file": ("a.csv", (FIXTURES / "tbank.csv").read_bytes())},
+        )
+        assert imported.status_code == 200
+        summary = (await client.get(root + "/analytics", headers=admin)).json()
+        assert summary["imports"] == 1
+        assert summary["recognition_percent"] == round(imported.json()["recognition_rate"] * 100, 1)
+        [account_summary] = (await client.get(root + "/users?q=member-check", headers=admin)).json()
+        assert account_summary["imports"] == 1 and account_summary["operations"] > 0
+        assert account_summary["last_activity"]
+        assert (
+            not {"hashed_password", "birth_date", "merchant_name", "amount"}
+            & account_summary.keys()
+        )
+
+        block = f"{root}/users/{member['user_id']}/block"
+        assert (await client.put(block, json={"blocked": True}, headers=staff)).status_code == 403
+        assert (await client.put(block, json={"blocked": True}, headers=admin)).status_code == 204
+        assert (await client.get("/api/v1/users/me", headers=user)).status_code == 401
+        assert (await client.put(block, json={"blocked": False}, headers=admin)).status_code == 204
+        assert (await client.get("/api/v1/users/me", headers=user)).status_code == 401
+        refresh = await client.post(
+            "/api/v1/auth/refresh", json={"refresh_token": member["refresh_token"]}
+        )
+        assert refresh.status_code == 401
+        login = await client.post(
+            "/api/v1/auth/login",
+            json={
+                "email": "member-check@example.com",
+                "password": "Test-password-123!",
+            },
+        )
+        assert login.status_code == 200
+
+    runner.run(scenario())
+
+
+def test_support_response_is_visible_only_to_its_owner(api_postgres) -> None:
+    runner, client, connection = api_postgres
+
+    async def scenario() -> None:
+        staff = await register(client, "staff-ticket@example.com")
+        owner = await register(client, "owner-ticket@example.com")
+        other = await register(client, "other-ticket@example.com")
+        await connection.execute(
+            update(User).where(User.email == "staff-ticket@example.com").values(role="moderator")
+        )
+        auth = {"Authorization": f"Bearer {staff['access_token']}"}
+        owner_headers = {"Authorization": f"Bearer {owner['access_token']}"}
+        outsider = {"Authorization": f"Bearer {other['access_token']}"}
+        response = await client.post(
+            "/api/v1/support/tickets",
+            headers=owner_headers,
+            data={"request_id": "9148851f-5981-4dd1-83ec-371a0659e863", "message": "Вопрос"},
+            files={"attachment": ("test.pdf", b"%PDF-1.4\n", "application/pdf")},
+        )
+        assert response.status_code == 201
+        ticket_id = response.json()["id"]
+        admin_ticket = f"/api/v1/admin/tickets/{ticket_id}"
+        assert (await client.get(admin_ticket + "/attachment", headers=outsider)).status_code == 403
+        attachment = await client.get(admin_ticket + "/attachment", headers=auth)
+        assert attachment.content == b"%PDF-1.4\n" and attachment.headers[
+            "content-disposition"
+        ].startswith("attachment;")
+        response = await client.put(
+            admin_ticket, headers=auth, json={"status": "answered", "reply": "Ответ"}
+        )
+        assert response.status_code == 204, response.text
+        tickets = (await client.get("/api/v1/support/tickets", headers=owner_headers)).json()
+        assert [(row["id"], row["reply"]) for row in tickets] == [(ticket_id, "Ответ")]
+        assert (await client.get("/api/v1/support/tickets", headers=outsider)).json() == []
 
     runner.run(scenario())

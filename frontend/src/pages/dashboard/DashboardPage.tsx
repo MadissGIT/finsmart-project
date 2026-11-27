@@ -3,6 +3,8 @@ import { RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { PeriodFilter } from '@/features/dashboard/PeriodFilter';
 import { useDashboard } from '@/features/dashboard/model/useDashboard';
+import { useNotifications } from '@/features/notifications/model/context';
+import { DashboardNotification } from '@/features/notifications/ui/Notifications';
 import { Modal } from '@/shared/ui/Modal';
 import { ExpenseChart } from '@/widgets/dashboard/ExpenseChart';
 import { SummaryCards } from '@/widgets/dashboard/SummaryCards';
@@ -13,6 +15,7 @@ import { getAuthGeneration } from '@/shared/api/tokens';
 
 export default function DashboardPage() {
   const dashboard = useDashboard();
+  const { refresh: refreshNotifications } = useNotifications();
   const { status, data, selection, user } = dashboard;
   const [healthHelp, setHealthHelp] = useState(false);
   const firstName = user?.full_name.trim().split(/\s+/)[0];
@@ -22,11 +25,12 @@ export default function DashboardPage() {
 
   return <div className="dashboard-page" aria-busy={status === 'loading'}>
     <div className="dashboard-heading"><div><h1>{firstName ? 'Привет, ' + firstName + '!' : 'Привет!'}</h1><p>Твой финансовый обзор</p></div>
-      {status === 'ready' ? <div className="dashboard-heading-actions"><Link to="/transactions?add=1" className="icon-button" aria-label="Добавить операцию"><img src="/figma/transactions/c46ca.svg" alt="" /></Link><button type="button" className="icon-button" onClick={dashboard.reload} aria-label="Обновить финансовый обзор"><RefreshCw size={18} /></button></div> : null}
+      {status === 'ready' ? <div className="dashboard-heading-actions"><Link to="/transactions?add=1" className="icon-button" aria-label="Добавить операцию"><img src="/figma/transactions/c46ca.svg" alt="" /></Link><button type="button" className="icon-button" onClick={() => { dashboard.reload(); refreshNotifications(); }} aria-label="Обновить финансовый обзор"><RefreshCw size={18} /></button></div> : null}
     </div>
     <PeriodFilter selection={selection} onChange={dashboard.setSearch} />
     <DashboardNotice status={status} error={dashboard.error} reload={dashboard.reload} />
     <SummaryCards summary={data?.summary} loading={status === 'loading'} />
+    <DashboardNotification />
     {showPanels ? <>
       {status === 'ready' && !hasOperations ? <div className="dashboard-notice"><p>За этот период операций пока нет. Выберите другой период или добавьте выписку.</p><Link className="button-secondary" to="/setup">Загрузить выписку</Link></div> : null}
       <div className="dashboard-grid">
@@ -39,10 +43,12 @@ export default function DashboardPage() {
       </div>
     </> : null}
     {dashboard.canLoadAnalytics && (
-      <Diagnostics
-        key={[user?.id, getAuthGeneration(), selection.range.from, selection.range.to, dashboard.revision].join(':')}
-        range={selection.range}
-      />
+      <div hidden={status === 'loading'}>
+        <Diagnostics
+          key={[user?.id, getAuthGeneration(), selection.range.from, selection.range.to, dashboard.revision].join(':')}
+          range={selection.range}
+        />
+      </div>
     )}
     {showPanels && <GoalPreview />}
     <Modal open={healthHelp} title="Соблюдение бюджета" onClose={() => setHealthHelp(false)}>

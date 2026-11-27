@@ -24,6 +24,9 @@ export function budgetFixture(from: string, to: string, empty = false) {
 export async function mockAccount(page: Page, options: { empty?: boolean } = {}) {
   let email = TEST_EMAIL;
   let fullName = 'Тестовый пользователь';
+  let birthDate: string | null = null;
+  let goal: string | null = null;
+  let incomeRange: string | null = null;
   let access = 'test-access-1';
   let refresh = 'test-refresh-1';
   let refreshCount = 0;
@@ -42,7 +45,12 @@ export async function mockAccount(page: Page, options: { empty?: boolean } = {})
       const fields = request.postDataJSON();
       if (fields.password !== TEST_PASSWORD) return json(route, 401, { detail: 'Неверный email или пароль' });
       email = fields.email;
-      if (path === '/auth/register') fullName = fields.full_name;
+      if (path === '/auth/register') {
+        fullName = fields.full_name;
+        birthDate = fields.birth_date ?? null;
+        goal = fields.goal ?? null;
+        incomeRange = fields.income_range ?? null;
+      }
       return json(route, path === '/auth/register' ? 201 : 200, tokens());
     }
     if (path === '/auth/refresh') {
@@ -64,9 +72,14 @@ export async function mockAccount(page: Page, options: { empty?: boolean } = {})
       }
       return json(route, 200, points);
     }
-    if (['/users/me', '/analytics/budget', '/analytics/dashboard', '/transactions/import-statement', '/goals'].includes(path)) {
+    if (['/users/me', '/analytics/budget', '/analytics/dashboard', '/transactions/import-statement', '/goals', '/gamification/progress', '/limits'].includes(path)) {
       if (request.headers().authorization !== 'Bearer ' + access) return json(route, 401, { detail: 'Требуется вход' });
-      if (path === '/users/me') return json(route, 200, { id: TEST_USER_ID, email, full_name: fullName, created_at: '2026-10-01T00:00:00Z' });
+      if (path === '/users/me') return json(route, 200, { id: TEST_USER_ID, email, full_name: fullName, birth_date: birthDate, goal, income_range: incomeRange, preferences_saved: true, created_at: '2026-10-01T00:00:00Z' });
+      if (path === '/gamification/progress') return json(route, 200, {
+        items: [], challenges: [], reward_points: 0,
+        league: { title: 'Бронзовая', minimum: 0, next_title: 'Серебряная', next_minimum: 50 },
+      });
+      if (path === '/limits') return json(route, 200, []);
       if (path === '/goals') return request.method() === 'GET' ? json(route, 200, []) : route.fallback();
       if (path === '/transactions/import-statement') {
         importCount += 1;

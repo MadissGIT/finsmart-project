@@ -27,11 +27,14 @@ Figma-подключение не предоставило данные слоё
 в репозитории и показываются с object-fit: contain. Скриншоты макета
 не используются как готовый интерфейс или фон.
 
-| Файл | Место | Исходный размер |
+| Файл | Место | Размер изображения на сайте |
 | --- | --- | --- |
-| `public/illustrations/wallet.png` | Welcome, между описанием и действиями | 1448 × 1086 |
-| `public/illustrations/success.png` | Успех, над заголовком | 1470 × 1070 |
-| `public/illustrations/statement.png` | Настройка, над предложением импорта | 1470 × 1070 |
+| `public/illustrations/wallet.webp` | Welcome, между описанием и действиями | 810 × 608 |
+| `public/illustrations/success.webp` | Успех, над заголовком | 660 × 480 |
+| `public/illustrations/statement.webp` | Настройка, над предложением импорта | 690 × 502 |
+
+Знак ₽ загружается из сокращённого файла Inter Variable с одним глифом.
+Лицензия шрифта находится в `public/fonts/OFL-Inter.txt`.
 
 ## Транзакции
 

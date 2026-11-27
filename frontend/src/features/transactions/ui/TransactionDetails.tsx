@@ -2,10 +2,11 @@ import { useState } from 'react';
 import type { Transaction } from '@/entities/transaction/model/types';
 import { financialTimezone } from '@/shared/lib/calendar';
 import { formatMoney } from '@/shared/lib/format';
-import { categoryColor } from '../model/presentation';
+import { categoryColor, formatTransactionTitle } from '../model/presentation';
+import { TransactionSavings } from './TransactionSavings';
 import { CategoryIcon, TransactionAsset, TransactionHero } from './CategoryIcon';
 
-export function TransactionDetails({ item, onBack, onEdit, onCategory, onDelete }: { item: Transaction; onBack: () => void; onEdit: () => void; onCategory: () => void; onDelete: () => void }) {
+export function TransactionDetails({ item, onBack, onEdit, onCategory, onDelete, onChange }: { item: Transaction; onBack: () => void; onEdit: () => void; onCategory: () => void; onDelete: () => void; onChange: () => void }) {
   const [notice, setNotice] = useState('');
   async function copyLink() {
     try { await navigator.clipboard.writeText(window.location.href); setNotice('Ссылка на операцию скопирована.'); }
@@ -16,10 +17,13 @@ export function TransactionDetails({ item, onBack, onEdit, onCategory, onDelete 
     <div className="transaction-detail-toolbar"><button type="button" className="transaction-icon-button" onClick={onBack} aria-label="К списку транзакций"><TransactionAsset name="de43d.svg" /></button><button type="button" className="transaction-icon-button" onClick={copyLink} aria-label="Скопировать ссылку на операцию"><TransactionAsset name="51c77.svg" /></button></div>
     <TransactionHero categoryId={item.category_id} />
     <h1 className={item.operation_type === 'CREDIT' ? 'transaction-income' : undefined}>{item.operation_type === 'CREDIT' ? '+' : '−'}{formatMoney(item.amount)}</h1><p className="transaction-detail-date">{date}</p>
-    <button className="transaction-detail-category" type="button" onClick={onCategory} aria-label="Изменить категорию"><CategoryIcon id={item.category_id} /><span><strong>{item.merchant_name}</strong><span><span className="transaction-color-dot" style={{ background: categoryColor(item.category_id) }} />{item.category_name}</span></span></button>
+    <button className="transaction-detail-category" type="button" onClick={onCategory} aria-label="Изменить категорию"><CategoryIcon id={item.category_id} /><span><strong>{formatTransactionTitle(item.merchant_name)}</strong><span><span className="transaction-color-dot" style={{ background: categoryColor(item.category_id) }} />{item.category_name}</span></span></button>
     {item.requires_review ? <p className="transaction-error">Проверьте категорию этой операции.</p> : null}
     <div className="transaction-detail-comment"><h2>Комментарий</h2><p>{item.comment || 'Комментария нет'}</p></div>
     <p className="transaction-muted">{item.bank_source === 'MANUAL' ? 'Добавлено вручную' : 'Импорт из ' + ({ SBER: 'Сбера', TBANK: 'Т-Банка', VTB: 'ВТБ' }[item.bank_source])}</p>
+    {item.bank_source === 'MANUAL' && item.operation_type === 'DEBIT' && (
+      <TransactionSavings key={item.id} item={item} onChange={onChange} />
+    )}
     <div className="transaction-detail-actions"><button className="button-secondary" type="button" onClick={onEdit}>Редактировать</button><button className="button-secondary transaction-delete" type="button" onClick={onDelete}>Удалить</button></div>
     {notice ? <p className="transaction-muted" role="status">{notice}</p> : null}
   </article>;

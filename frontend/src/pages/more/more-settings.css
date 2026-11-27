@@ -1,0 +1,71 @@
+.more-settings { gap: 8px; }
+.more-settings .more-heading { margin-bottom: 0; }
+.more-settings-list {
+  display: grid;
+  border-radius: 14px;
+  background: var(--more-card);
+}
+.more-setting-row {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
+  min-height: 56px;
+  padding: 7px 16px;
+  text-align: left;
+  font-size: 14px;
+  font-weight: 550;
+  line-height: 1.35;
+  cursor: pointer;
+}
+.more-setting-row + .more-setting-row { border-top: 1px solid #e2e4eb; }
+.more-setting-row .more-menu-icon { width: 40px; height: 40px; background: #e9e3fa; }
+.more-setting-value { display: flex; align-items: center; gap: 5px; color: var(--more-muted); }
+.more-setting-switch {
+  appearance: none;
+  display: inline-grid;
+  align-items: center;
+  width: 40px;
+  height: 24px;
+  padding: 3px;
+  border-radius: 999px;
+  background: #74849e;
+  cursor: pointer;
+}
+.more-setting-switch::before {
+  content: '';
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: white;
+}
+.more-setting-switch:checked { background: var(--more-blue); }
+.more-setting-switch:checked::before { justify-self: end; }
+.more-settings-footer { display: grid; gap: 6px; }
+.more-settings-about {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-height: 26px;
+  font-size: 14px;
+}
+.more-settings-about small, .more-setting-notice { color: var(--more-muted); font-size: 12px; }
+.more-settings-policy { justify-self: start; min-height: 30px; color: var(--more-blue); text-align: left; font-size: 14px; }
+.more-settings-account {
+  display: grid;
+  place-items: center;
+  min-height: 34px;
+  padding: 5px 12px;
+  border: 1px solid #afb8cc;
+  border-radius: 16px;
+  color: var(--more-blue);
+  font-size: 12px;
+  font-weight: 550;
+}
+@media (max-width: 767px) and (max-height: 580px) {
+  .more-setting-row { min-height: 54px; padding-block: 6px; }
+}
+@media (min-width: 768px) {
+  .more-setting-row { min-height: 62px; padding-inline: 18px; }
+}

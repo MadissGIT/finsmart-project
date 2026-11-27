@@ -1,9 +1,10 @@
-import { useId, useState } from 'react';
+import { lazy, Suspense, useId, useState } from 'react';
 import type { ReactNode } from 'react';
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import type { CategoryExpense } from '@/entities/analytics/model/types';
 import { formatMoney } from '@/shared/lib/format';
 import { toCategoryChartData } from './model/category-chart';
+
+const ExpensePie = lazy(() => import('./ExpensePie'));
 
 interface Props {
   categories: CategoryExpense[];
@@ -28,14 +29,9 @@ export function ExpenseChart({ categories, total, compact = false, title = 'Ра
     {total > 0 && data.length > 0 ? <>
       <div className={compact ? 'expense-compact' : ''}>
         <div className="expense-chart" aria-hidden="true">
-          <ResponsiveContainer width="100%" height="100%" minWidth={0}>
-            <PieChart accessibilityLayer={false}>
-              <Pie data={data} dataKey="value" nameKey="name" innerRadius={compact ? 43 : 70} outerRadius={compact ? 58 : 96} paddingAngle={compact ? 1 : 3} stroke="none" isAnimationActive={false} onClick={(_, index) => select(data[index].id)}>
-                {data.map((item) => <Cell key={item.id} fill={item.fill} fillOpacity={selected && selected.id !== item.id ? 0.3 : 1} cursor="pointer" />)}
-              </Pie>
-              <Tooltip formatter={(value) => formatMoney(Number(value))} />
-            </PieChart>
-          </ResponsiveContainer>
+          <Suspense fallback={null}>
+            <ExpensePie items={data} selectedId={selected?.id} compact={compact} onSelect={select} />
+          </Suspense>
           <div className="expense-total"><strong>{formatMoney(selected?.value ?? total)}</strong><span>{selected?.name ?? 'всего расходов'}</span></div>
         </div>
         <ul className="expense-legend" aria-label="Суммы расходов по категориям">

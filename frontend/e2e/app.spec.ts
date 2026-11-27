@@ -30,12 +30,23 @@ test('прямые адреса и обновление страниц сохр�
 
 test('навигация показывает активный раздел и поддерживает историю', async ({ page }, testInfo) => {
   await page.goto('/');
-  const nav = page.getByRole('navigation', { name: testInfo.project.name === 'mobile' ? 'Мобильная навигация' : 'Основная навигация' });
+  const isMobile = testInfo.project.name === 'mobile';
+  const nav = page.getByRole('navigation', { name: isMobile ? 'Мобильная навигация' : 'Основная навигация' });
+  const readNavStyle = () => nav.evaluate((menu) =>
+    Array.from(menu.querySelectorAll('a'), (link) => ({
+      width: link.getBoundingClientRect().width,
+      height: link.getBoundingClientRect().height,
+      fontSize: getComputedStyle(link).fontSize,
+      icon: link.querySelector('svg')?.outerHTML,
+    })),
+  );
+  const overviewNav = isMobile ? await readNavStyle() : null;
   for (const [label, title] of [['Транзакции', 'Транзакции'], ['Копилки', 'Финансовые цели'], ['Скидки', 'Скидки'], ['Ещё', 'Ещё']]) {
     const link = nav.getByRole('link', { name: label, exact: true });
     await link.click();
     await expect(page.getByRole('heading', { level: 1, name: title, exact: true })).toBeVisible();
     await expect(link).toHaveAttribute('aria-current', 'page');
+    if (overviewNav) expect(await readNavStyle()).toEqual(overviewNav);
   }
   await page.goBack();
   await expect(page.getByRole('heading', { level: 1, name: 'Скидки' })).toBeVisible();
@@ -55,7 +66,7 @@ test('пустой аккаунт получает нулевые показат
   await mockAccount(page, { empty: true });
   await signIn(page);
   await expect(page.getByRole('heading', { name: 'Структура расходов', exact: true })).toBeVisible();
-  await expect(page.locator('.dashboard-summary dd')).toHaveText([/0\s*₽/, /0\s*₽/, /0\s*₽/]);
+  await expect(page.locator('.dashboard-summary dd')).toHaveText([/0\s*₽/, /0\s*₽/]);
   await expect(page.getByText('За этот период расходов пока нет.', { exact: true })).toBeVisible();
   await expect(page.getByText('Недостаточно данных', { exact: true })).toBeVisible();
   await expect(page.getByText('Целей пока нет', { exact: true })).toBeVisible();
@@ -63,7 +74,7 @@ test('пустой аккаунт получает нулевые показат
   await expect(page.getByRole('progressbar')).toHaveCount(0);
   await expect(page.getByRole('list', { name: 'Суммы расходов по категориям' })).toHaveCount(0);
   await page.reload();
-  await expect(page.locator('.dashboard-summary dd')).toHaveText([/0\s*₽/, /0\s*₽/, /0\s*₽/]);
+  await expect(page.locator('.dashboard-summary dd')).toHaveText([/0\s*₽/, /0\s*₽/]);
   await page.getByRole('button', { name: 'О рейтинге', exact: true }).click();
   await expect(page.getByRole('dialog')).toBeVisible();
   await expect(page.getByRole('dialog')).toContainText('Пока нет операций для расчёта');

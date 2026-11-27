@@ -104,7 +104,7 @@ export function GoalDetails({ id, back }: { id: string; back: string }) {
       </>}
       {receipt && <Modal open title="Цель пополнена!" className="goal-dialog goal-confirm" onClose={() => setReceipt(null)}>
         <div className="goal-deposit-success">
-          <img src="/illustrations/success.png" alt="" width="136" height="100" />
+          <img src="/illustrations/success.webp" alt="" width="136" height="100" />
           <p>{receipt.message}. Сейчас в копилке <strong>{formatMoney(receipt.current_amount)}</strong>.</p>
           {receipt.acceleration_days > 0 && <p>По оценке сервера, взнос приблизил достижение цели на {receipt.acceleration_days} дн.</p>}
           <button className="button-primary" onClick={() => setReceipt(null)}>Отлично</button>

@@ -4,7 +4,18 @@ from uuid import UUID
 from pydantic import BaseModel, Field
 
 from src.common_types import JsonDecimal
-from src.db.models import BankSource, OperationType, Transaction
+from src.db.models import BankSource, GoalContribution, OperationType, Transaction
+from src.modules.goals.schemas import Money
+
+
+class DiscountSavingsRequest(BaseModel):
+    original_amount: Money
+    goal_id: UUID
+
+
+class DiscountSavingsResponse(BaseModel):
+    goal_id: UUID
+    amount: JsonDecimal
 
 
 class TransactionResponse(BaseModel):
@@ -20,10 +31,11 @@ class TransactionResponse(BaseModel):
     comment: str | None
     mcc_code: str | None
     bank_source: BankSource
+    discount_savings: DiscountSavingsResponse | None = None
 
     @classmethod
     def from_transaction(
-        cls, transaction: Transaction, category_name: str
+        cls, transaction: Transaction, category_name: str, savings: GoalContribution | None = None
     ) -> "TransactionResponse":
         return cls(
             id=transaction.id,
@@ -38,6 +50,9 @@ class TransactionResponse(BaseModel):
             comment=transaction.comment,
             mcc_code=transaction.mcc_code,
             bank_source=transaction.bank_source,
+            discount_savings=DiscountSavingsResponse(goal_id=savings.goal_id, amount=savings.amount)
+            if savings
+            else None,
         )
 
 

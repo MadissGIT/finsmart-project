@@ -2,10 +2,9 @@ import { useState } from 'react';
 import type { FormEvent } from 'react';
 import axios from 'axios';
 import { Mail } from 'lucide-react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, Navigate, useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/features/auth/model/context';
 import { useOnboarding } from '@/features/onboarding/model/context';
-import { incomeRanges, profileGoals } from '@/features/onboarding/model/validation';
 import { getRequestErrorMessage } from '@/shared/api/client';
 import { FormField } from '@/shared/ui/FormField';
 import { PageHeading } from '@/shared/ui/PageHeading';
@@ -19,6 +18,7 @@ export function AuthPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [loginDestination, setLoginDestination] = useState<string | null>(null);
 
   function signOut() { auth.signOut(); resetSession(); navigate('/welcome'); }
 
@@ -29,16 +29,21 @@ export function AuthPage() {
       setError('Укажите корректный email и пароль от 10 до 128 символов.');
       return;
     }
+    const next = search.get('next');
+    const allowed = ['/', '/setup', '/analytics', '/transactions', '/discounts', '/goals',
+      '/admin', '/more/support', '/more/settings', '/more/profile', '/more/profile/settings', '/more/profile/achievements',
+      '/more/profile/achievements/statistics', '/more/profile/challenges'];
+    setLoginDestination(next && allowed.includes(next) ? next : '/');
     setBusy(true); setError('');
     try {
       await auth.signIn({ email: email.trim(), password });
       const sameAccount = session.email.toLowerCase() === email.trim().toLowerCase();
       updateSession({ email: email.trim(), stage: 'complete', ...(!sameAccount ? { fullName: '', goal: '', incomeRange: '' } : {}) });
       setPassword('');
-      const next = search.get('next');
-      navigate(next && ['/', '/setup', '/analytics', '/transactions', '/discounts', '/goals'].includes(next) ? next : '/');
     } catch (err) {
-      setError(axios.isAxiosError(err) && err.response?.status === 401 ? 'Неверный email или пароль.' : getRequestErrorMessage(err, 'Не удалось войти. Попробуйте ещё раз.'));
+      setError(axios.isAxiosError(err) && err.response?.status === 401
+        ? (err.response.data?.detail === 'Учетная запись заблокирована'
+          ? 'Учетная запись заблокирована.' : 'Неверный email или пароль.') : getRequestErrorMessage(err, 'Не удалось войти. Попробуйте ещё раз.'));
     } finally { setBusy(false); }
   }
 
@@ -62,21 +67,5 @@ export function AuthPage() {
     </div>;
   }
 
-  const ownPreferences = session.email.toLowerCase() === auth.user.email.toLowerCase();
-  return <>
-    <PageHeading title="Профиль" description="Данные аккаунта и настройка приложения." />
-    <section className="panel max-w-lg">
-      <h2 className="font-semibold">{auth.user.full_name}</h2>
-      <dl className="profile-details">
-        <div><dt>Email</dt><dd>{auth.user.email}</dd></div>
-        {auth.user.birth_date && <div><dt>Дата рождения</dt><dd><time dateTime={auth.user.birth_date}>
-          {auth.user.birth_date.split('-').reverse().join('.')}
-        </time></dd></div>}
-        <div><dt>Цель использования</dt><dd>{ownPreferences ? profileGoals.find((item) => item.value === session.goal)?.label || 'Не выбрана' : 'Не выбрана'}</dd></div>
-        <div><dt>Диапазон дохода</dt><dd>{ownPreferences ? incomeRanges.find((item) => item.value === session.incomeRange)?.label || 'Не указан' : 'Не указан'}</dd></div>
-      </dl>
-      <p className="mb-5 text-xs leading-5 text-slate-500">Предпочтения из анкеты сохраняются в текущей вкладке. Финансовый обзор рассчитывается по операциям в аккаунте.</p>
-      <div className="flex flex-wrap gap-3"><Link className="button-primary" to="/setup">Загрузить выписку</Link><button type="button" className="button-secondary" onClick={signOut}>Выйти</button></div>
-    </section>
-  </>;
+  return <Navigate to={loginDestination ?? '/more/profile'} replace />;
 }
