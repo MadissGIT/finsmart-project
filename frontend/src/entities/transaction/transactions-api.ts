@@ -1,6 +1,6 @@
 import { api } from '@/shared/api/client';
 import { ApiContractError, isFiniteNumber, isRecord, isUuid } from '@/shared/lib/guards';
-import type { CreateTransactionRequest, Transaction, UpdateCategoryRequest } from './model/types';
+import type { CreateTransactionRequest, DiscountSavings, Transaction, UpdateCategoryRequest } from './model/types';
 
 export interface TransactionFilters {
   q: string;
@@ -13,6 +13,10 @@ export interface TransactionFilters {
 
 export const TRANSACTIONS_PAGE_SIZE = 20;
 
+function isDiscountSavings(value: unknown): value is DiscountSavings {
+  return isRecord(value) && isUuid(value.goal_id) && isFiniteNumber(value.amount) && value.amount > 0;
+}
+
 export function parseTransaction(data: unknown): Transaction {
   if (!isRecord(data) || !isUuid(data.id) || !isFiniteNumber(data.amount) || data.amount <= 0
     || !['DEBIT', 'CREDIT'].includes(String(data.operation_type)) || !Number.isInteger(data.category_id) || Number(data.category_id) < 1
@@ -22,6 +26,7 @@ export function parseTransaction(data: unknown): Transaction {
     || !(data.comment === null || typeof data.comment === 'string') || !(data.mcc_code === null || typeof data.mcc_code === 'string')
     || !['TBANK', 'SBER', 'VTB', 'MANUAL'].includes(String(data.bank_source))
     || typeof data.requires_review !== 'boolean' || !isFiniteNumber(data.confidence) || data.confidence < 0 || data.confidence > 1) throw new ApiContractError();
+  if (data.discount_savings != null && !isDiscountSavings(data.discount_savings)) throw new ApiContractError();
   return data as unknown as Transaction;
 }
 
@@ -56,4 +61,16 @@ export async function deleteTransaction(id: string) {
 export async function changeTransactionCategory(id: string, fields: UpdateCategoryRequest) {
   const { data } = await api.patch<unknown>('/transactions/' + id + '/category', fields);
   if (!isRecord(data) || data.status !== 'success') throw new ApiContractError();
+}
+
+export async function recordDiscountSavings(id: string, goalId: string, originalAmount: number) {
+  const { data } = await api.put<unknown>('/transactions/' + id + '/discount-savings', {
+    goal_id: goalId, original_amount: originalAmount,
+  });
+  if (!isDiscountSavings(data) || data.goal_id !== goalId) throw new ApiContractError();
+  return data;
+}
+
+export async function removeDiscountSavings(id: string) {
+  await api.delete('/transactions/' + id + '/discount-savings');
 }

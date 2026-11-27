@@ -10,6 +10,11 @@ export interface CreateTransactionRequest {
   comment?: string | null;
 }
 
+export interface DiscountSavings {
+  goal_id: string;
+  amount: number;
+}
+
 export interface Transaction {
   id: string;
   amount: number;
@@ -23,6 +28,7 @@ export interface Transaction {
   bank_source: 'TBANK' | 'SBER' | 'VTB' | 'MANUAL';
   requires_review: boolean;
   confidence: number;
+  discount_savings?: DiscountSavings | null;
 }
 
 // Импорт в спецификации возвращает date, ручное создание — transaction_date.

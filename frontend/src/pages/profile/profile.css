@@ -294,10 +294,6 @@
 
 @media (max-width: 767px) {
   .profile-layout .app-header { display: none; }
-  .profile-layout .app-content { padding-bottom: calc(62px + env(safe-area-inset-bottom)); }
-  .profile-layout .more-mobile-nav { border: 0; padding-inline: 10px; background: #fcfcfe; }
-  .profile-layout .more-mobile-nav a { min-height: 46px; color: #4b5c80; font-size: 8px; }
-  .profile-layout .more-mobile-nav a[aria-current='page'] { color: var(--color-brand-700); }
 }
 
 @media (min-width: 768px) {
@@ -305,4 +301,53 @@
   .profile-card { padding: 13px; }
   .profile-achievement-hero { min-height: 188px; }
   .profile-badge-grid button, .profile-note { font-size: 12px; }
+}
+
+.profile-league {
+  display: grid;
+  gap: 5px;
+  width: min(100%, 220px);
+  margin-inline: auto;
+  color: var(--profile-muted);
+  font-size: 12px;
+  text-align: center;
+}
+
+.profile-league > div:first-child {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  color: var(--more-ink);
+}
+
+.profile-league svg { color: #a65d00; }
+
+.profile-challenge-card .profile-level-progress { max-width: 280px; margin-top: 4px; }
+
+.profile-challenge-item {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+  align-items: start;
+  gap: 10px;
+  padding: 12px;
+}
+
+.profile-challenge-item h3 { font-size: 13px; font-weight: 650; }
+.profile-challenge-item p { margin-block: 2px 5px; color: var(--profile-muted); font-size: 11px; }
+.profile-challenge-item .profile-level-progress { margin-block: 7px; }
+.profile-challenge-item .profile-challenge-meta { margin-bottom: 0; }
+.profile-challenge-offer { background: linear-gradient(100deg, #e9e9fc, #d6d4fa); }
+
+.profile-challenge-accept {
+  min-height: 34px;
+  margin-top: 8px;
+  padding: 6px 20px;
+  font-size: 12px;
+}
+
+.profile-challenge-offers h2 {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }

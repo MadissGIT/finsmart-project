@@ -1,8 +1,9 @@
 import { CalendarDays, ChevronDown, Coins, Trophy, UserRound } from 'lucide-react';
-import { useEffect, useId, useState } from 'react';
+import { useId, useState } from 'react';
 import type { FormEvent, ReactNode } from 'react';
-import { updateCurrentUserName } from '@/entities/user/api';
-import { readProfilePreferences, saveProfilePreferences } from '@/entities/user/model/preferences';
+import { useLocation } from 'react-router-dom';
+import { updateCurrentUser } from '@/entities/user/api';
+import { readProfilePreferences } from '@/entities/user/model/preferences';
 import type { UserProfile } from '@/entities/user/model/types';
 import { useAuth } from '@/features/auth/model/context';
 import { useOnboarding } from '@/features/onboarding/model/context';
@@ -39,57 +40,50 @@ function PreferenceField({ label, value, options, onChange, icon, disabled }: {
 
 export function ProfileSettings({ user }: { user: UserProfile }) {
   const auth = useAuth();
+  const { state } = useLocation();
+  const back = state?.from === '/more/settings' ? '/more/settings' : profilePath;
   const { session, updateSession, resetSession } = useOnboarding();
   const mutation = useApiMutation();
-  const ownSession = session.stage === 'complete' && session.email.toLowerCase() === user.email.toLowerCase();
-  const oldGoal = ownSession ? session.goal : '';
-  const oldIncome = ownSession ? session.incomeRange : '';
-  const [savedPreferences, setSavedPreferences] = useState(() =>
-    readProfilePreferences(user.id) ?? { goal: oldGoal, incomeRange: oldIncome });
-  const { goal: savedGoal, incomeRange: savedIncome } = savedPreferences;
+  const [legacy] = useState(() => {
+    if (user.preferences_saved) return null;
+    const ownSession = session.stage === 'complete' && session.email.toLowerCase() === user.email.toLowerCase();
+    const previous = readProfilePreferences(user.id)
+      ?? (ownSession ? { goal: session.goal, incomeRange: session.incomeRange } : null);
+    if (!previous) return null;
+    const goal = profileGoals.some(({ value }) => value === previous.goal) ? previous.goal : '';
+    const incomeRange = incomeRanges.some(({ value }) => value === previous.incomeRange) ? previous.incomeRange : '';
+    return goal || incomeRange ? { goal, incomeRange } : null;
+  });
+  const [saved, setSaved] = useState(user);
   const [fullName, setFullName] = useState(user.full_name);
-  const [goal, setGoal] = useState(savedGoal);
-  const [incomeRange, setIncomeRange] = useState(savedIncome);
+  const [goal, setGoal] = useState(user.goal ?? legacy?.goal ?? '');
+  const [incomeRange, setIncomeRange] = useState(user.income_range ?? legacy?.incomeRange ?? '');
   const [notice, setNotice] = useState(false);
-  const [preferencesError, setPreferencesError] = useState(false);
   const name = fullName.trim();
-  const preferencesChanged = goal !== savedGoal || incomeRange !== savedIncome;
-  const dirty = name !== user.full_name || preferencesChanged;
-
-  useEffect(() => {
-    if ((oldGoal || oldIncome) && !readProfilePreferences(user.id)) {
-      saveProfilePreferences(user.id, { goal: oldGoal, incomeRange: oldIncome });
-    }
-  }, [user.id, oldGoal, oldIncome]);
+  const needsTransfer = legacy !== null && !saved.preferences_saved;
+  const dirty = needsTransfer || name !== saved.full_name
+    || (goal || null) !== saved.goal || (incomeRange || null) !== saved.income_range;
 
   function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (!name || !dirty || mutation.busy) return;
     setNotice(false);
-    setPreferencesError(false);
-
-    function finish(savedName: string) {
-      setFullName(savedName);
-      if (preferencesChanged) {
-        const preferences = { goal, incomeRange };
-        if (!saveProfilePreferences(user.id, preferences)) {
-          setPreferencesError(true);
-          return;
-        }
-        setSavedPreferences(preferences);
-      }
-      updateSession({ email: user.email, fullName: savedName, goal, incomeRange, stage: 'complete' });
-      setNotice(true);
-    }
-
-    if (name === user.full_name) {
-      finish(name);
-    } else {
-      void mutation.run(() => updateCurrentUserName(name), (updated) => {
-        finish(updated.full_name);
-        auth.retryProfile();
+    void mutation.run(() => updateCurrentUser({
+      full_name: name,
+      goal: goal || null,
+      income_range: incomeRange || null,
+    }), (updated) => {
+      setSaved(updated);
+      setFullName(updated.full_name);
+      setGoal(updated.goal ?? '');
+      setIncomeRange(updated.income_range ?? '');
+      updateSession({
+        email: updated.email, fullName: updated.full_name,
+        goal: '', incomeRange: '', stage: 'complete',
       });
-    }
+      setNotice(true);
+      auth.retryProfile();
+    });
   }
 
   function signOut() {
@@ -100,8 +94,8 @@ export function ProfileSettings({ user }: { user: UserProfile }) {
 
   return (
     <div className="more-page profile-page profile-settings">
-      <MoreHeading title="Профиль" back={profilePath} />
-      <div className="profile-identity"><ProfileAvatar /><p>{user.email}</p></div>
+      <MoreHeading title="Профиль" back={back} />
+      <div className="profile-identity"><ProfileAvatar /></div>
       <form className="profile-settings-form" onChange={() => setNotice(false)} onSubmit={save} aria-busy={mutation.busy}>
         <div className="profile-card profile-settings-fields">
           <FormField id="profile-full-name" label="Имя" value={fullName} maxLength={200} autoComplete="name"
@@ -117,7 +111,7 @@ export function ProfileSettings({ user }: { user: UserProfile }) {
             onChange={setIncomeRange} icon={<Coins size={16} aria-hidden="true" />} disabled={mutation.busy} />
         </div>
         {mutation.error && <p className="field-error" role="alert">{mutation.error}</p>}
-        {preferencesError && <p className="field-error" role="alert">Браузер не разрешил сохранить цель и доход.</p>}
+        {needsTransfer && <p className="profile-note">Нажмите «Сохранить», чтобы перенести настройки в аккаунт.</p>}
         {notice && <p className="profile-note" role="status">Изменения сохранены.</p>}
         <button className="button-primary profile-save" type="submit" disabled={mutation.busy || !name || !dirty}>
           {mutation.busy ? 'Сохраняем…' : 'Сохранить'}

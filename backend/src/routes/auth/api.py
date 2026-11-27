@@ -67,4 +67,4 @@ async def update_profile(
     user: Annotated[User, Depends(get_current_user)],
     auth_service: Annotated[AuthService, Depends(get_auth_service)],
 ) -> UserResponse:
-    return UserResponse.model_validate(await auth_service.update_profile(user, payload.full_name))
+    return UserResponse.model_validate(await auth_service.update_profile(user, payload))

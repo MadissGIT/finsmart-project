@@ -15,6 +15,7 @@ from src.modules.auth.repositories import AuthRepository
 from src.modules.auth.schemas import (
     InvalidCredentialsError,
     LoginRequest,
+    ProfileUpdate,
     RegisterRequest,
     TokenResponse,
     UserAlreadyExistsError,
@@ -25,6 +26,7 @@ class TokenIdentity(BaseModel):
     sub: UUID
     jti: UUID
     type: str
+    session_version: int = 0
 
 
 class AuthService:
@@ -53,6 +55,10 @@ class AuthService:
             hashed_password=password_hash,
             full_name=request.full_name.strip(),
             birth_date=request.birth_date,
+            welcome_started_at=datetime.now(UTC) if request.welcome else None,
+            goal=request.goal,
+            income_range=request.income_range,
+            preferences_saved=bool({"goal", "income_range"} & request.model_fields_set),
         )
         await self._auth_repository.add_user(user)
         return await self._issue_tokens(user, None)
@@ -69,6 +75,8 @@ class AuthService:
             raise InvalidCredentialsError("Неверный email или пароль") from err
         if user is None:
             raise InvalidCredentialsError("Неверный email или пароль")
+        if user.blocked_at is not None:
+            raise InvalidCredentialsError("Учетная запись заблокирована")
         return await self._issue_tokens(user, None)
 
     def decode_token(self, token: str, token_type: str) -> TokenIdentity:
@@ -92,6 +100,8 @@ class AuthService:
         identity = self.decode_token(token, "access")
         if (user := await self._auth_repository.get_user(identity.sub)) is None:
             raise InvalidCredentialsError("Пользователь не найден")
+        if user.blocked_at is not None or identity.session_version != user.session_version:
+            raise InvalidCredentialsError("Сессия больше не действует")
         return user
 
     async def refresh(self, token: str) -> TokenResponse:
@@ -109,13 +119,21 @@ class AuthService:
             raise InvalidCredentialsError("Сессия истекла или токен уже использован")
         if (user := await self._auth_repository.get_user(identity.sub)) is None:
             raise InvalidCredentialsError("Пользователь не найден")
+        if user.blocked_at is not None or identity.session_version != user.session_version:
+            raise InvalidCredentialsError("Сессия больше не действует")
         return await self._issue_tokens(user, session)
 
     async def _issue_tokens(self, user: User, old_session: RefreshSession | None) -> TokenResponse:
         now = datetime.now(UTC)
         expires_at = now + timedelta(days=self._auth_settings.refresh_token_days)
         session_id = uuid4()
-        common = {"sub": str(user.id), "iat": now, "iss": "finsmart", "aud": "finsmart-api"}
+        common = {
+            "sub": str(user.id),
+            "iat": now,
+            "iss": "finsmart",
+            "aud": "finsmart-api",
+            "session_version": user.session_version,
+        }
         secret = self._auth_settings.jwt_secret.get_secret_value()
         access = jwt.encode(
             {
@@ -150,7 +168,13 @@ class AuthService:
             user_id=user.id, email=user.email, access_token=access, refresh_token=refresh
         )
 
-    async def update_profile(self, user: User, full_name: str) -> User:
-        user.full_name = full_name
+    async def update_profile(self, user: User, request: ProfileUpdate) -> User:
+        user.full_name = request.full_name
+        if "goal" in request.model_fields_set:
+            user.goal = request.goal
+        if "income_range" in request.model_fields_set:
+            user.income_range = request.income_range
+        if {"goal", "income_range"} & request.model_fields_set:
+            user.preferences_saved = True
         await self._auth_repository.save_user(user)
         return user

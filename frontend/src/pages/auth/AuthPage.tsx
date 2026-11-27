@@ -31,7 +31,7 @@ export function AuthPage() {
     }
     const next = search.get('next');
     const allowed = ['/', '/setup', '/analytics', '/transactions', '/discounts', '/goals',
-      '/more/profile', '/more/profile/settings', '/more/profile/achievements',
+      '/admin', '/more/support', '/more/settings', '/more/profile', '/more/profile/settings', '/more/profile/achievements',
       '/more/profile/achievements/statistics', '/more/profile/challenges'];
     setLoginDestination(next && allowed.includes(next) ? next : '/');
     setBusy(true); setError('');
@@ -41,7 +41,9 @@ export function AuthPage() {
       updateSession({ email: email.trim(), stage: 'complete', ...(!sameAccount ? { fullName: '', goal: '', incomeRange: '' } : {}) });
       setPassword('');
     } catch (err) {
-      setError(axios.isAxiosError(err) && err.response?.status === 401 ? 'Неверный email или пароль.' : getRequestErrorMessage(err, 'Не удалось войти. Попробуйте ещё раз.'));
+      setError(axios.isAxiosError(err) && err.response?.status === 401
+        ? (err.response.data?.detail === 'Учетная запись заблокирована'
+          ? 'Учетная запись заблокирована.' : 'Неверный email или пароль.') : getRequestErrorMessage(err, 'Не удалось войти. Попробуйте ещё раз.'));
     } finally { setBusy(false); }
   }
 

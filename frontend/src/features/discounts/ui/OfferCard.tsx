@@ -5,6 +5,7 @@ import { offerDate } from '../model/discounts';
 
 const assetPath = '/figma/discounts/';
 const partnerLogos: Record<string, string> = {
+  'пятерочка': 'pyaterochka.png',
   'пятерочка доставка': 'pyaterochka.png',
   lamoda: 'lamoda.png',
   'яндекс go': 'yandex-go.png',
@@ -41,7 +42,7 @@ export function OfferCard({ offer, to }: { offer: Discount; to: string }) {
             <p>{offer.title}</p>
             <span className="offer-meta"><img src={assetPath + 'clock.svg'} alt="" />{offerDate(offer.valid_until)}</span>
             <span className="offer-meta"><Tag size={10} aria-hidden="true" />{offer.category_name}</span>
-            {offer.is_demo && <span className="offer-demo-label">Демо</span>}
+            <span className="offer-demo-label">{offer.is_demo ? 'Демо' : 'Условия магазина'}</span>
           </div>
         </div>
       </div>

@@ -30,12 +30,23 @@ test('прямые адреса и обновление страниц сохр�
 
 test('навигация показывает активный раздел и поддерживает историю', async ({ page }, testInfo) => {
   await page.goto('/');
-  const nav = page.getByRole('navigation', { name: testInfo.project.name === 'mobile' ? 'Мобильная навигация' : 'Основная навигация' });
+  const isMobile = testInfo.project.name === 'mobile';
+  const nav = page.getByRole('navigation', { name: isMobile ? 'Мобильная навигация' : 'Основная навигация' });
+  const readNavStyle = () => nav.evaluate((menu) =>
+    Array.from(menu.querySelectorAll('a'), (link) => ({
+      width: link.getBoundingClientRect().width,
+      height: link.getBoundingClientRect().height,
+      fontSize: getComputedStyle(link).fontSize,
+      icon: link.querySelector('svg')?.outerHTML,
+    })),
+  );
+  const overviewNav = isMobile ? await readNavStyle() : null;
   for (const [label, title] of [['Транзакции', 'Транзакции'], ['Копилки', 'Финансовые цели'], ['Скидки', 'Скидки'], ['Ещё', 'Ещё']]) {
     const link = nav.getByRole('link', { name: label, exact: true });
     await link.click();
     await expect(page.getByRole('heading', { level: 1, name: title, exact: true })).toBeVisible();
     await expect(link).toHaveAttribute('aria-current', 'page');
+    if (overviewNav) expect(await readNavStyle()).toEqual(overviewNav);
   }
   await page.goBack();
   await expect(page.getByRole('heading', { level: 1, name: 'Скидки' })).toBeVisible();

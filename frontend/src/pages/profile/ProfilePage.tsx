@@ -1,13 +1,13 @@
-import { ChevronRight, Info, Paintbrush, Star, Target, UserRound } from 'lucide-react';
+import { ChevronRight, Info, Paintbrush, Target, UserRound } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { getAchievements } from '@/entities/achievement/api';
 import { getDiagnosis } from '@/entities/analytics/api';
 import type { UserProfile } from '@/entities/user/model/types';
 import { presetRange } from '@/features/dashboard/model/period';
+import { useNotifications } from '@/features/notifications/model/context';
 import { MoreError, MoreHeading } from '@/pages/more/MoreUi';
 import { useApiQuery } from '@/shared/api/useApiQuery';
 import { financialToday } from '@/shared/lib/calendar';
-import { BadgeEmblem } from './ProfileUi';
+import { BadgeEmblem, ChallengeProgress, LeagueStatus } from './ProfileUi';
 import { achievementsPath, challengePath, settingsPath } from './paths';
 
 function getCurrentDiagnosis(signal: AbortSignal) {
@@ -57,7 +57,8 @@ function ProfileHealth() {
 }
 
 export function ProfilePage({ user }: { user: UserProfile }) {
-  const { data, error, loading, retry } = useApiQuery(getAchievements);
+  const { game: { data, error, loading, retry } } = useNotifications();
+  const active = data?.challenges.find(({ status }) => status === 'active');
   const earned = data?.items.filter(({ unlocked }) => unlocked).slice(0, 4) ?? [];
 
   return (
@@ -66,7 +67,7 @@ export function ProfilePage({ user }: { user: UserProfile }) {
       <section className="profile-identity" aria-labelledby="profile-name">
         <ProfileAvatar editable />
         <h2 id="profile-name">{user.full_name}</h2>
-        {data && <p>{data.reward_points.toLocaleString('ru-RU')} баллов <Star size={16} aria-hidden="true" /></p>}
+        {data && <LeagueStatus league={data.league} points={data.reward_points} />}
       </section>
       <ProfileHealth />
       <section className="profile-section">
@@ -74,7 +75,7 @@ export function ProfilePage({ user }: { user: UserProfile }) {
           <h2>Ваши достижения</h2>
           <Link to={achievementsPath}>Все бейджи <ChevronRight size={13} aria-hidden="true" /></Link>
         </div>
-        {loading && <p className="profile-note" role="status">Загружаем достижения…</p>}
+        {loading && !data && <p className="profile-note" role="status">Загружаем достижения…</p>}
         {error && <MoreError error={error} retry={retry} />}
         {data && (earned.length ? (
           <ul className="profile-preview-badges">
@@ -91,7 +92,8 @@ export function ProfilePage({ user }: { user: UserProfile }) {
         </div>
         <Link className="profile-challenge-card" to={challengePath}>
           <Target size={40} strokeWidth={1.65} aria-hidden="true" />
-          <span><strong>Челленджи</strong><small>Пока недоступны</small></span>
+          {active ? <div><strong>{active.title}</strong><ChallengeProgress challenge={active} /></div>
+            : <span><strong>Выбрать челлендж</strong><small>Посмотрите доступные задания</small></span>}
           <ChevronRight size={16} aria-hidden="true" />
         </Link>
       </section>

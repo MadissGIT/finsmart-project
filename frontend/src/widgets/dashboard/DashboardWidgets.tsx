@@ -1,12 +1,11 @@
 import { ChevronRight, Info, Plus, Target } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import type { DashboardResponse } from '@/entities/analytics/model/types';
-import { listGoals } from '@/entities/goal/api';
 import { useAuth } from '@/features/auth/model/context';
 import { formatDeadline, formatPercent, nearestGoal } from '@/features/goals/model/goals';
 import { GoalIcon } from '@/features/goals/ui/GoalVisual';
 import { getAuthGeneration } from '@/shared/api/tokens';
-import { useApiQuery } from '@/shared/api/useApiQuery';
+import { useNotifications } from '@/features/notifications/model/context';
 import { formatMoney } from '@/shared/lib/format';
 
 export function BudgetScore({ score, onHelp }: { score: number | null; onHelp: () => void }) {
@@ -55,7 +54,7 @@ export function GoalPreview() {
 }
 
 function GoalPreviewContent({ signedIn }: { signedIn: boolean }) {
-  const query = useApiQuery(listGoals, signedIn);
+  const { goals: query } = useNotifications();
   const goal = query.data && nearestGoal(query.data);
   return (
     <section aria-label="Ближайшие цели">

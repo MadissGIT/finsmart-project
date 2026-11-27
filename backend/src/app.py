@@ -12,13 +12,16 @@ from sqlalchemy.exc import TimeoutError as DatabaseTimeout
 from src.core.settings import get_auth_settings, get_project_settings
 from src.db.database import get_async_engine
 from src.modules.goals.service import GoalNotFoundError, InvalidGoalError
+from src.routes.admin.api import router as admin_router
 from src.routes.analytics.api import router as analytics_router
 from src.routes.auth.api import router as auth_router
 from src.routes.catalog.api import router as catalog_router
 from src.routes.categories.api import router as categories_router
+from src.routes.gamification.api import router as gamification_router
 from src.routes.goals.api import router as goals_router
 from src.routes.health import router as health_router
 from src.routes.limits.api import router as limits_router
+from src.routes.support import router as support_router
 from src.routes.transactions.api import router as transactions_router
 
 
@@ -88,3 +91,6 @@ app.include_router(analytics_router, prefix="/api/v1")
 app.include_router(goals_router, prefix="/api/v1")
 app.include_router(catalog_router, prefix="/api/v1")
 app.include_router(limits_router, prefix="/api/v1")
+app.include_router(gamification_router, prefix="/api/v1")
+app.include_router(support_router, prefix="/api/v1")
+app.include_router(admin_router, prefix="/api/v1")

@@ -32,7 +32,7 @@ export function AppLayout() {
         <Header />
         <main id="main-content" tabIndex={-1} className="app-content"><Outlet /></main>
       </div>
-      <MobileNav compact={moreHome || profile} />
+      <MobileNav />
     </div>
   );
 }

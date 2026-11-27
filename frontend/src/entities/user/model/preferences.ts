@@ -16,12 +16,3 @@ export function readProfilePreferences(userId: string): ProfilePreferences | nul
     return null;
   }
 }
-
-export function saveProfilePreferences(userId: string, preferences: ProfilePreferences): boolean {
-  try {
-    localStorage.setItem(preferencesKey(userId), JSON.stringify(preferences));
-    return true;
-  } catch {
-    return false;
-  }
-}

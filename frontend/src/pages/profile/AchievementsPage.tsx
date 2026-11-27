@@ -1,13 +1,12 @@
 import { Award, LockKeyhole, Star, Trophy } from 'lucide-react';
 import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
-import { getAchievements } from '@/entities/achievement/api';
-import type { Achievement } from '@/entities/achievement/api';
+import type { Achievement } from '@/entities/gamification/api';
 import { MoreError, MoreHeading } from '@/pages/more/MoreUi';
-import { useApiQuery } from '@/shared/api/useApiQuery';
+import { useNotifications } from '@/features/notifications/model/context';
 import { financialToday } from '@/shared/lib/calendar';
 import { Modal } from '@/shared/ui/Modal';
-import { BadgeEmblem } from './ProfileUi';
+import { BadgeEmblem, LeagueStatus } from './ProfileUi';
 import { achievementsPath, profilePath, statisticsPath } from './paths';
 
 const levelOrder: Record<string, number> = { Бронза: 1, Серебро: 2, Золото: 3, Платина: 4 };
@@ -57,7 +56,9 @@ function BadgeStatistics({ items, points }: { items: Achievement[]; points: numb
 function Badges({ items, earned }: { items: Achievement[]; earned: Achievement[] }) {
   const [selected, setSelected] = useState<Achievement | null>(null);
   const locked = items.filter((badge) => !badge.unlocked);
-  const next = locked[0];
+  const next = locked.flatMap((badge) => badge.progress && badge.progress.target > 1 ? [{
+    badge, fraction: badge.progress.current / badge.progress.target,
+  }] : []).sort((left, right) => right.fraction - left.fraction)[0]?.badge;
   return (
     <div className="profile-section">
       <h2>Бейджи <span className="profile-muted">({earned.length} из {items.length})</span></h2>
@@ -74,13 +75,17 @@ function Badges({ items, earned }: { items: Achievement[]; earned: Achievement[]
       </ul>
       {next && <button className="profile-challenge-card profile-next-badge" type="button" onClick={() => setSelected(next)}>
         <span className="profile-level-icon"><LockKeyhole size={23} aria-hidden="true" /></span>
-        <span><small>Закрытый бейдж</small><strong>{next.title}</strong><small>{next.condition}</small></span>
+        <span><small>Следующий бейдж</small><strong>{next.title}</strong><small>{next.condition}</small></span>
       </button>}
       <Modal open={selected !== null} title={selected?.title ?? 'Бейдж'} onClose={() => setSelected(null)}>
         {selected && <div className="profile-badge-details">
           <BadgeEmblem badge={selected} />
           <p>{selected.level} · {selected.points} баллов</p>
           <p>{selected.condition}</p>
+          {selected.progress && <div className="profile-level-progress">
+            <progress value={selected.progress.current} max={selected.progress.target} aria-label={selected.title} />
+            <span>{selected.progress.current} из {selected.progress.target}</span>
+          </div>}
           <p>{selected.unlocked ? 'Получен' : 'Пока закрыт'}
             {selected.earned_at && ' · ' + financialToday(new Date(selected.earned_at)).split('-').reverse().join('.')}
           </p>
@@ -91,8 +96,9 @@ function Badges({ items, earned }: { items: Achievement[]; earned: Achievement[]
 }
 
 export function AchievementsPage({ statistics = false }: { statistics?: boolean }) {
-  const { data, error, loading, retry } = useApiQuery(getAchievements);
-  const earned = data?.items.filter(({ unlocked }) => unlocked) ?? [];
+  const { game: { data, error, loading, retry } } = useNotifications();
+  const items = data?.items ?? [];
+  const earned = items.filter(({ unlocked }) => unlocked);
 
   return (
     <div className="more-page profile-page">
@@ -106,11 +112,14 @@ export function AchievementsPage({ statistics = false }: { statistics?: boolean 
         <NavLink end to={achievementsPath}>Бейджи</NavLink>
         <NavLink end to={statisticsPath}>Статистика</NavLink>
       </nav>
-      {loading && <p className="profile-note" role="status">Загружаем достижения…</p>}
+      {loading && !data && <p className="profile-note" role="status">Загружаем достижения…</p>}
       {error && <MoreError error={error} retry={retry} />}
       {data && (statistics
-        ? <BadgeStatistics items={data.items} points={data.reward_points} />
-        : <Badges items={data.items} earned={earned} />)}
+        ? <div className="profile-section">
+          <LeagueStatus league={data.league} points={data.reward_points} />
+          <BadgeStatistics items={items} points={data.reward_points} />
+        </div>
+        : <Badges items={items} earned={earned} />)}
     </div>
   );
 }

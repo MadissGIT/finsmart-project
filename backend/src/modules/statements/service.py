@@ -111,7 +111,9 @@ class StatementService:
             )
             responses[item.external_id] = (item, category)
             recognized += not category.requires_review
-        imported = await self._transaction_repository.import_transactions(records)
+        imported = await self._transaction_repository.import_transactions(
+            records, user_id=user_id, recognized=recognized
+        )
         imported_responses = []
         for record in imported:
             if record.import_hash is None:
@@ -182,9 +184,11 @@ class StatementService:
         await self._transaction_repository.save_transaction(transaction)
         return transaction, category.name
 
-    async def _get_transaction(self, user_id: UUID, transaction_id: UUID) -> Transaction:
+    async def _get_transaction(
+        self, user_id: UUID, transaction_id: UUID, lock: bool = False
+    ) -> Transaction:
         transaction = await self._transaction_repository.get_transaction(
-            user_id=user_id, transaction_id=transaction_id
+            user_id=user_id, transaction_id=transaction_id, lock=lock
         )
         if transaction is None:
             raise TransactionNotFoundError("Операция не найдена")
@@ -201,7 +205,16 @@ class StatementService:
     async def update_transaction(
         self, user_id: UUID, transaction_id: UUID, payload: TransactionUpdate
     ) -> tuple[Transaction, str]:
-        transaction = await self._get_transaction(user_id=user_id, transaction_id=transaction_id)
+        transaction = await self._get_transaction(user_id, transaction_id, lock=True)
+        changed_amount = payload.amount is not None and payload.amount != transaction.amount
+        changed_type = (
+            payload.operation_type is not None
+            and payload.operation_type != transaction.operation_type
+        )
+        if (
+            changed_amount or changed_type
+        ) and await self._transaction_repository.get_discount_contribution(transaction.id):
+            raise InvalidTransactionError("Сначала отмените взнос из экономии по этому расходу")
         category_id = (
             payload.category_id if payload.category_id is not None else transaction.category_id
         )

@@ -1,41 +1,40 @@
-import { useId, useState } from 'react';
+import { useEffect, useId, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
+import { useLocation } from 'react-router-dom';
 import { getCategories } from '@/entities/category/api';
-import { api, getRequestErrorMessage } from '@/shared/api/client';
+import { removeCategoryLimit, saveCategoryLimit } from '@/entities/limit/api';
+import { useNotifications } from '@/features/notifications/model/context';
+import { getRequestErrorMessage } from '@/shared/api/client';
 import { useApiQuery } from '@/shared/api/useApiQuery';
 import { formatMoney } from '@/shared/lib/format';
-
-interface LimitUsage {
-  category_id: number;
-  category_name: string;
-  amount: number;
-  spent: number;
-  percent: number;
-  status: 'ok' | 'approaching' | 'reached';
-}
-
-async function loadLimits(signal: AbortSignal) {
-  const { data } = await api.get<LimitUsage[]>('/limits', { signal });
-  return data;
-}
 
 export function CategoryLimits() {
   const formId = useId();
   const categories = useApiQuery(getCategories);
-  const limits = useApiQuery(loadLimits);
+  const { limits } = useNotifications();
+  const section = useRef<HTMLElement>(null);
+  const { hash, key } = useLocation();
   const [category, setCategory] = useState('');
   const [amount, setAmount] = useState('');
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (hash !== '#category-limits') return;
+    const frame = requestAnimationFrame(() => {
+      section.current?.focus({ preventScroll: true });
+      section.current?.scrollIntoView({ block: 'start' });
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [hash, key]);
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setPending(true);
     setError('');
     try {
-      await api.put('/limits/' + category, { amount });
+      await saveCategoryLimit(category, amount);
       setAmount('');
-      limits.retry();
     } catch (err) {
       setError(getRequestErrorMessage(err));
     } finally {
@@ -47,8 +46,7 @@ export function CategoryLimits() {
     setPending(true);
     setError('');
     try {
-      await api.delete('/limits/' + id);
-      limits.retry();
+      await removeCategoryLimit(id);
     } catch (err) {
       setError(getRequestErrorMessage(err));
     } finally {
@@ -56,7 +54,7 @@ export function CategoryLimits() {
     }
   }
 
-  return <section className="panel print:hidden" aria-labelledby={formId + "-title"}>
+  return <section ref={section} id="category-limits" tabIndex={-1} className="panel scroll-mt-4 print:hidden" aria-labelledby={formId + "-title"}>
     <h2 id={formId + "-title"} className="font-semibold">Лимиты текущего месяца</h2>
     <form className="my-4 flex flex-wrap items-end gap-3" onSubmit={(event) => void save(event)}>
       <div><label htmlFor={formId + "-category"}>Категория</label>
@@ -75,9 +73,9 @@ export function CategoryLimits() {
     </form>
     {(error || limits.error || categories.error) && <p role="alert">{error || limits.error || categories.error}</p>}
     {limits.error && <button type="button" onClick={limits.retry}>Повторить загрузку лимитов</button>}
-    {limits.loading && <p role="status">Загружаем лимиты…</p>}
+    {limits.loading && !limits.data && <p role="status">Загружаем лимиты…</p>}
     <ul className="grid gap-3">
-      {limits.data?.map((item) => <li key={item.category_id} className="rounded border p-3">
+      {limits.data?.items.map((item) => <li key={item.category_id} className="rounded border p-3">
         <div className="flex flex-wrap justify-between gap-2">
           <strong>{item.category_name}</strong>
           <button type="button" disabled={pending} aria-label={'Удалить лимит ' + item.category_name}

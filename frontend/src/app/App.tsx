@@ -2,6 +2,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { lazy, Suspense } from 'react';
 import { OnboardingProvider } from '@/features/onboarding/OnboardingProvider';
 import { AuthProvider } from '@/features/auth/AuthProvider';
+import { NotificationsProvider } from '@/features/notifications/NotificationsProvider';
 import { AppLayout } from '@/widgets/app-layout/AppLayout';
 import { OnboardingLayout } from '@/widgets/onboarding/OnboardingLayout';
 import { WelcomePage } from '@/pages/welcome/WelcomePage';
@@ -12,10 +13,13 @@ import { InitialSetupPage } from '@/pages/initial-setup/InitialSetupPage';
 import DashboardPage from '@/pages/dashboard/DashboardPage';
 import { AuthPage } from '@/pages/auth/AuthPage';
 import { MorePage } from '@/pages/more/MorePage';
-import { AboutPage, FaqPage, SupportPage } from '@/pages/more/HelpPages';
+import { MoreSettingsPage } from '@/pages/more/MoreSettingsPage';
+import { SupportPage } from '@/pages/more/SupportPage';
+import { AboutPage, FaqPage } from '@/pages/more/HelpPages';
 import { NotFoundPage } from '@/pages/not-found/NotFoundPage';
 import { RouteEffects } from './RouteEffects';
 
+const AdminRoutes = lazy(() => import('@/pages/admin/AdminRoutes'));
 const ProfileRoutes = lazy(() => import('@/pages/profile/ProfileRoutes'));
 const AnalyticsPage = lazy(() => import('@/pages/analytics/AnalyticsPage'));
 
@@ -27,11 +31,12 @@ const DiscountsPage = lazy(() => import('@/pages/discounts/DiscountsPage').then(
 
 export function App() {
   return (
-    <AuthProvider><OnboardingProvider>
+    <AuthProvider><OnboardingProvider><NotificationsProvider>
       <BrowserRouter>
         <RouteEffects />
         <Suspense fallback={<p className="p-8" role="status">Загружаем страницу…</p>}>
           <Routes>
+            <Route path="admin/*" element={<AdminRoutes />} />
             <Route element={<OnboardingLayout />}>
               <Route path="welcome" element={<WelcomePage />} />
               <Route path="register" element={<RegisterPage />} />
@@ -48,6 +53,7 @@ export function App() {
               <Route path="goals/:goalId" element={<GoalsPage />} />
               <Route path="discounts" element={<DiscountsPage />} />
               <Route path="more" element={<MorePage />} />
+              <Route path="more/settings" element={<MoreSettingsPage />} />
               <Route path="more/knowledge" element={<KnowledgePage />} />
               <Route path="more/knowledge/:articleId" element={<ArticlePage />} />
               <Route path="more/faq" element={<FaqPage />} />
@@ -60,6 +66,6 @@ export function App() {
           </Routes>
         </Suspense>
       </BrowserRouter>
-    </OnboardingProvider></AuthProvider>
+    </NotificationsProvider></OnboardingProvider></AuthProvider>
   );
 }

@@ -3,9 +3,10 @@ import type { Transaction } from '@/entities/transaction/model/types';
 import { financialTimezone } from '@/shared/lib/calendar';
 import { formatMoney } from '@/shared/lib/format';
 import { categoryColor, formatTransactionTitle } from '../model/presentation';
+import { TransactionSavings } from './TransactionSavings';
 import { CategoryIcon, TransactionAsset, TransactionHero } from './CategoryIcon';
 
-export function TransactionDetails({ item, onBack, onEdit, onCategory, onDelete }: { item: Transaction; onBack: () => void; onEdit: () => void; onCategory: () => void; onDelete: () => void }) {
+export function TransactionDetails({ item, onBack, onEdit, onCategory, onDelete, onChange }: { item: Transaction; onBack: () => void; onEdit: () => void; onCategory: () => void; onDelete: () => void; onChange: () => void }) {
   const [notice, setNotice] = useState('');
   async function copyLink() {
     try { await navigator.clipboard.writeText(window.location.href); setNotice('Ссылка на операцию скопирована.'); }
@@ -20,6 +21,9 @@ export function TransactionDetails({ item, onBack, onEdit, onCategory, onDelete 
     {item.requires_review ? <p className="transaction-error">Проверьте категорию этой операции.</p> : null}
     <div className="transaction-detail-comment"><h2>Комментарий</h2><p>{item.comment || 'Комментария нет'}</p></div>
     <p className="transaction-muted">{item.bank_source === 'MANUAL' ? 'Добавлено вручную' : 'Импорт из ' + ({ SBER: 'Сбера', TBANK: 'Т-Банка', VTB: 'ВТБ' }[item.bank_source])}</p>
+    {item.bank_source === 'MANUAL' && item.operation_type === 'DEBIT' && (
+      <TransactionSavings key={item.id} item={item} onChange={onChange} />
+    )}
     <div className="transaction-detail-actions"><button className="button-secondary" type="button" onClick={onEdit}>Редактировать</button><button className="button-secondary transaction-delete" type="button" onClick={onDelete}>Удалить</button></div>
     {notice ? <p className="transaction-muted" role="status">{notice}</p> : null}
   </article>;

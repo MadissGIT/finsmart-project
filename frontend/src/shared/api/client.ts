@@ -10,6 +10,8 @@ export const api = axios.create({
   headers: { Accept: 'application/json' },
 });
 
+export const financialDataChanges = new EventTarget();
+
 const refreshClient = axios.create({ baseURL: '/api/v1', timeout: 10_000 });
 const publicAuthPath = /^\/auth\/(login|register|refresh)(\?|$)/;
 type AuthRequestConfig = InternalAxiosRequestConfig & { authRetried?: boolean; authGeneration?: number };
@@ -47,7 +49,15 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-api.interceptors.response.use((response) => response, async (error: unknown) => {
+api.interceptors.response.use((response) => {
+  const config = response.config as AuthRequestConfig;
+  if (getAuthTokens() && config.authGeneration === getAuthGeneration()
+    && /^(post|put|patch|delete)$/i.test(config.method ?? '')
+    && /^\/(transactions|goals|limits)(?:[/?]|$)/.test(config.url ?? '')) {
+    financialDataChanges.dispatchEvent(new Event('change'));
+  }
+  return response;
+}, async (error: unknown) => {
   if (!axios.isAxiosError(error) || error.response?.status !== 401 || !error.config) throw error;
   const config = error.config as AuthRequestConfig;
   if (config.authGeneration !== getAuthGeneration()) throw new CanceledError('Сессия изменилась');

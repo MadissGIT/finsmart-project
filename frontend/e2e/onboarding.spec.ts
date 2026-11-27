@@ -2,7 +2,14 @@ import { expect, test } from '@playwright/test';
 import { mockAccount, TEST_PASSWORD } from './helpers';
 
 test('проверяет поля, показывает пароль и объясняет вход через Yandex', async ({ page }) => {
+  await page.goto('/auth');
+  const loginPassword = page.getByLabel('Пароль', { exact: true });
+  await expect(loginPassword).toHaveValue('');
+  await expect(loginPassword).toHaveAttribute('placeholder', '••••••••');
+
   await page.goto('/register');
+  await expect(page.getByLabel('Пароль', { exact: true })).toHaveAttribute('placeholder', '••••••••');
+  await expect(page.getByLabel('Повторите пароль', { exact: true })).toHaveAttribute('placeholder', '••••••••');
   await page.getByRole('button', { name: 'Продолжить', exact: true }).click();
   await expect(page.getByText('Укажите email в формате name@example.ru.')).toBeVisible();
   await expect(page.getByText('Пароли должны совпадать.')).toBeVisible();

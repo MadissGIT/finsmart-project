@@ -1,0 +1,48 @@
+.support-page { max-width: 420px; }
+.support-back { margin-inline-start: -8px; font-size: 24px; }
+.support-heading { display: grid; justify-items: center; text-align: center; gap: 12px; }
+.support-heading .more-info-icon {
+  width: 120px;
+  height: 120px;
+  margin: 14px 0 20px;
+  background: #ecf1fb;
+}
+.support-heading h1 { font: 750 20px/1.25 'Manrope Variable', var(--font-sans); }
+.support-heading p { color: var(--more-muted); font-size: 14px; }
+.support-form { display: grid; gap: 14px; }
+.support-form textarea {
+  width: 100%;
+  min-height: 80px;
+  padding: 8px;
+  resize: vertical;
+  border: 1px solid #dce4f3;
+  border-radius: 13px;
+  color: var(--more-ink);
+  background: #edf2fb;
+  font-size: 16px;
+}
+.support-attachment {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 10px;
+  min-height: 46px;
+  padding: 7px;
+  border-radius: 13px;
+  background: #edf2fb;
+  color: var(--more-muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+.support-attachment:focus-within { outline: 2px solid var(--more-blue); outline-offset: 2px; }
+.support-attachment small { display: block; font-size: 11px; }
+.support-attachment input { position: absolute; inset: 0; width: 100%; opacity: 0; cursor: pointer; }
+.support-selected-file { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; font-size: 12px; overflow-wrap: anywhere; }
+.support-ticket code { overflow-wrap: anywhere; }
+
+.support-history { padding: 12px; border-radius: 12px; background: #ecf1fb; font-size: 13px; }
+.support-history summary { cursor: pointer; font-weight: 650; }
+.support-history article { margin-top: 10px; padding: 8px; border-radius: 8px; background: #fff; }
+.support-history article p { margin-top: 5px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.support-history article > div { margin-top: 10px; padding: 8px; border-radius: 8px; background: #edf2fb; }

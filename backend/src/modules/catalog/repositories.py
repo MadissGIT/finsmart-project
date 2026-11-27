@@ -4,7 +4,7 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from src.db.models import Category, Discount, OperationType, Transaction
+from src.db.models import Category, Discount, KnowledgeArticle, OperationType, Transaction
 
 
 class CatalogRepository:
@@ -12,11 +12,29 @@ class CatalogRepository:
         self._session = session
 
     async def discounts(self, category_id: int | None, today: date) -> list[tuple[Discount, str]]:
-        query = select(Discount, Category.name).join(Category).where(Discount.valid_until >= today)
+        query = (
+            select(Discount, Category.name)
+            .join(Category)
+            .where(
+                Discount.status == "published",
+                Discount.valid_until >= today,
+                Discount.valid_from.is_(None) | (Discount.valid_from <= today),
+            )
+        )
         if category_id is not None:
             query = query.where(Discount.category_id == category_id)
+        result = await self._session.execute(
+            query.order_by(Discount.is_demo, Discount.code, Discount.id)
+        )
+        return list(result.tuples().all())
+
+    async def articles(self) -> list[KnowledgeArticle]:
         return list(
-            (await self._session.execute(query.order_by(Discount.code, Discount.id))).tuples().all()
+            await self._session.scalars(
+                select(KnowledgeArticle)
+                .where(KnowledgeArticle.status == "published")
+                .order_by(KnowledgeArticle.id)
+            )
         )
 
     async def top_expense_categories(
